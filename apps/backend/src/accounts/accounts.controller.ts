@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
@@ -20,14 +28,18 @@ export class AccountsController {
     return this.accountsService.create(createAccountDto, userId);
   }
 
-  @Post()
+  @Get()
+  @UseGuards(SupabaseAuthGuard)
+  findAll(@Req() request: AuthenticatedRequest) {
+    return this.accountsService.findAll(request.user.id);
+  }
+
+  @Delete('/')
   @UseGuards(SupabaseAuthGuard)
   delete(
     @Body() deleteAccountDto: DeleteAccountDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    const userId = request.user.id;
-
-    return this.accountsService.delete(deleteAccountDto, userId);
+    return this.accountsService.delete(deleteAccountDto, request.user.id);
   }
 }

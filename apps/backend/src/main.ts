@@ -1,11 +1,20 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 // import { SupabaseService } from './supabase/supabase.service';
 // import { SupabaseMode } from './supabase/supabase.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // const appEnv = process.env.APP_ENV as SupabaseMode;
 

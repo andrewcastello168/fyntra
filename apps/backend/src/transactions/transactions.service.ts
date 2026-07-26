@@ -108,15 +108,6 @@ export class TransactionsService {
     return date.toISOString().slice(0, 10);
   }
 
-  private getOneMonthPeriodEnd(startDate: string): string {
-    const date = new Date(`${startDate}T00:00:00Z`);
-
-    date.setUTCMonth(date.getUTCMonth() + 1);
-    date.setUTCDate(date.getUTCDate() - 1);
-
-    return date.toISOString().slice(0, 10);
-  }
-
   create(createTransactionDto: CreateTransactionDto, userId: string) {
     const {
       accountId,
@@ -128,6 +119,7 @@ export class TransactionsService {
       note,
       startNewPeriod = false,
       savingPercentage,
+      periodEndDate: requestedPeriodEndDate,
     } = createTransactionDto;
 
     const transactionAmount = Number(amount);
@@ -238,8 +230,31 @@ export class TransactionsService {
         }
 
         const periodStartDate = this.formatDateOnly(transactionDate);
+        const periodEndDate = requestedPeriodEndDate
+          ? this.formatDateOnly(requestedPeriodEndDate)
+          : undefined;
+
+        if (!periodEndDate) {
+          throw new BadRequestException(
+            'Tanggal akhir periode wajib diisi saat memulai periode baru.',
+          );
+        }
+
+        if (periodEndDate < periodStartDate) {
+          throw new BadRequestException(
+            'Tanggal akhir periode tidak boleh sebelum tanggal transaksi.',
+          );
+        }
 
         if (activePeriod) {
+          if (
+            this.formatDateOnly(activePeriod.start_date) === periodStartDate
+          ) {
+            throw new BadRequestException(
+              'Periode budgeting sudah dimulai pada tanggal tersebut.',
+            );
+          }
+
           const previousDate = this.getPreviousDate(periodStartDate);
 
           await trx('budget_periods')
@@ -253,8 +268,6 @@ export class TransactionsService {
               updated_at: trx.fn.now(),
             });
         }
-
-        const periodEndDate = this.getOneMonthPeriodEnd(periodStartDate);
 
         const [newPeriod] = await trx<BudgetPeriod>('budget_periods')
           .insert({
@@ -597,7 +610,7 @@ export class TransactionsService {
     };
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: number, userId: string) {
     const db = this.knexService.connection;
 
     const transaction = await db('transactions as t')

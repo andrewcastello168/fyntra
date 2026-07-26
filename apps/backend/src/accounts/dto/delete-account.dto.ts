@@ -1,7 +1,9 @@
-import { IsString, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsPositive } from 'class-validator';
 
 export class DeleteAccountDto {
-  @IsString()
-  @MaxLength(100)
-  accountName!: string;
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  accountId!: number;
 }

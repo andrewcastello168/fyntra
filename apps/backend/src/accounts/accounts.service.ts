@@ -31,6 +31,27 @@ interface UserRow {
 export class AccountsService {
   constructor(private readonly knexService: KnexService) {}
 
+  async findAll(userId: string) {
+    const accounts = await this.knexService
+      .connection<AccountRow>('accounts')
+      .where({
+        user_id: userId,
+        is_active: true,
+      })
+      .orderBy('account_name', 'asc');
+
+    return {
+      message: 'Daftar akun berhasil diambil.',
+      data: accounts.map((account) => ({
+        id: Number(account.id),
+        accountName: account.account_name,
+        accountType: account.account_type,
+        currentBalance: Number(account.current_balance),
+        isActive: account.is_active,
+      })),
+    };
+  }
+
   async create(createAccountDto: CreateAccountDto, userId: string) {
     const { accountName, accountType, initialBalance = 0 } = createAccountDto;
 
@@ -88,7 +109,7 @@ export class AccountsService {
   }
 
   async delete(deleteAccountDto: DeleteAccountDto, userId: string) {
-    const { accountName } = deleteAccountDto;
+    const { accountId } = deleteAccountDto;
 
     const db = this.knexService.connection;
 
@@ -106,7 +127,7 @@ export class AccountsService {
     const existingAccount = await db<AccountRow>('accounts')
       .where({
         user_id: userId,
-        account_name: accountName,
+        id: accountId,
         is_active: true,
       })
       .first();
@@ -114,7 +135,7 @@ export class AccountsService {
     // Kalau akun tidak ditemukan, baru error
     if (!existingAccount) {
       throw new NotFoundException(
-        `Akun dengan nama "${accountName}" tidak ditemukan.`,
+        `Akun dengan ID ${accountId} tidak ditemukan.`,
       );
     }
 

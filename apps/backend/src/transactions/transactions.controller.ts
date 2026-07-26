@@ -78,7 +78,7 @@ export class TransactionsController {
    */
   @Get(':id')
   findOne(
-    @Param('id', ParseIntPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() request: AuthenticatedRequest,
   ) {
     return this.transactionsService.findOne(id, request.user.id);

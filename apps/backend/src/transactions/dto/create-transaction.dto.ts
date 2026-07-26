@@ -75,4 +75,11 @@ export class CreateTransactionDto {
   @Min(0)
   @Type(() => Number)
   savingPercentage?: number;
+
+  @ValidateIf((dto: CreateTransactionDto) => dto.startNewPeriod === true)
+  @IsDefined({
+    message: 'periodEndDate wajib diisi ketika startNewPeriod bernilai true.',
+  })
+  @IsDateString()
+  periodEndDate?: string;
 }
