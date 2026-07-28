@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { colors } from "@/src/theme";
-export function LoadingState({ label = "Memuat..." }: { label?: string }) {
+export function LoadingState({ label = "Loading..." }: { label?: string }) {
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color={colors.primary} />

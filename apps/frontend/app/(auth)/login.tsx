@@ -23,11 +23,12 @@ export default function LoginScreen() {
   async function submit() {
     setLocalError("");
     if (!email || !password)
-      return setLocalError("Email dan kata sandi wajib diisi.");
+      return setLocalError("Email and password are required.");
     setLoading(true);
     try {
       await login(email.trim(), password);
-    } catch {
+    } catch (err) {
+      console.log("Error Test: ", err);
       /* provider exposes the API error */
     } finally {
       setLoading(false);
@@ -44,14 +45,14 @@ export default function LoginScreen() {
       >
         <View style={styles.brand}>
           <Text style={styles.kicker}>PERSONAL TRACKER</Text>
-          <Text style={styles.title}>Kelola uang dengan lebih tenang.</Text>
+          <Text style={styles.title}>Manage your money with confidence.</Text>
           <Text style={styles.subtitle}>
-            Masuk untuk melihat ringkasan keuangan Anda.
+            Log in to view your financial summary.
           </Text>
         </View>
         <View style={styles.form}>
           {localError || error ? (
-            <ErrorState message={localError || error || "Login gagal."} />
+            <ErrorState message={localError || error || "Login failed."} />
           ) : null}
           <TextInput
             label="Email"
@@ -63,18 +64,18 @@ export default function LoginScreen() {
             placeholder="nama@email.com"
           />
           <TextInput
-            label="Kata sandi"
+            label="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoComplete="password"
             placeholder="Minimal 8 karakter"
           />
-          <Button label="Masuk" onPress={submit} loading={loading} />
+          <Button label="Log in" onPress={submit} loading={loading} />
           <Text style={styles.footer}>
-            Belum punya akun?{" "}
+            Don't have an account?{" "}
             <Link href={"/register" as never} style={styles.link}>
-              Daftar sekarang
+              Sign up now
             </Link>
           </Text>
         </View>

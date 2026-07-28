@@ -4,10 +4,10 @@ import { colors } from "@/src/theme";
 export default function AccountsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Akun</Text>
+      <Text style={styles.title}>Accounts</Text>
       <EmptyState
-        title="Belum ada akun"
-        message="Daftar akun Anda akan tampil di sini setelah fitur akun tersedia."
+        title="No accounts yet"
+        message="Your accounts will appear here once account features are available."
       />
     </ScrollView>
   );

@@ -3,7 +3,7 @@ import { colors } from "@/src/theme";
 export function ErrorState({ message }: { message: string }) {
   return (
     <View accessibilityRole="alert" style={styles.container}>
-      <Text style={styles.title}>Ada kendala</Text>
+      <Text style={styles.title}>Something went wrong</Text>
       <Text style={styles.message}>{message}</Text>
     </View>
   );

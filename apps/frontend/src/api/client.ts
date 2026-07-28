@@ -19,8 +19,7 @@ export async function apiFetch<T>(
   options: RequestInit = {},
   accessToken?: string,
 ): Promise<T> {
-  if (!API_BASE_URL)
-    throw new Error("EXPO_PUBLIC_API_URL belum dikonfigurasi.");
+  if (!API_BASE_URL) throw new Error("EXPO_PUBLIC_API_URL is not configured.");
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
@@ -29,7 +28,7 @@ export async function apiFetch<T>(
     headers,
   });
   if (!response.ok) {
-    let message = "Terjadi kesalahan. Silakan coba lagi.";
+    let message = "Something went wrong. Please try again.";
     try {
       const body = (await response.json()) as ApiErrorBody;
       message = Array.isArray(body.message)

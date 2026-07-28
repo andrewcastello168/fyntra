@@ -4,10 +4,10 @@ import { colors } from "@/src/theme";
 export default function TransactionsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Transaksi</Text>
+      <Text style={styles.title}>Transactions</Text>
       <EmptyState
-        title="Belum ada transaksi"
-        message="Riwayat pemasukan, pengeluaran, dan transfer akan tampil di sini."
+        title="No transactions yet"
+        message="Your income, expenses, and transfers will appear here."
       />
     </ScrollView>
   );

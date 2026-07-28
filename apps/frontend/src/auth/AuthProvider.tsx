@@ -104,7 +104,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           }
           return false;
         } catch (e) {
-          const message = e instanceof Error ? e.message : "Registrasi gagal.";
+          const message = e instanceof Error ? e.message : "Sign-up failed.";
           setError(message);
           throw e;
         }

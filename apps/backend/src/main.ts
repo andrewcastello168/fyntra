@@ -27,7 +27,8 @@ async function bootstrap() {
 
   // console.log({ data, error });
 
-  await app.listen(process.env.PORT ?? 4000);
+  // await app.listen(process.env.PORT ?? 4000);
+  await app.listen(process.env.PORT ?? 4000, '0.0.0.0');
 
   // const healthController = app.get(HealthController);
 

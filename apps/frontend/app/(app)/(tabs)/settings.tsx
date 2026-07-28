@@ -6,16 +6,16 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Pengaturan</Text>
+      <Text style={styles.title}>Settings</Text>
       <View style={styles.profile}>
-        <Text style={styles.label}>AKUN ANDA</Text>
+        <Text style={styles.label}>YOUR ACCOUNT</Text>
         <Text style={styles.email}>{user?.email}</Text>
         {user?.profile?.username ? (
           <Text style={styles.muted}>@{user.profile.username}</Text>
         ) : null}
       </View>
       <Button
-        label="Keluar"
+        label="Log out"
         variant="secondary"
         onPress={() => void logout()}
       />

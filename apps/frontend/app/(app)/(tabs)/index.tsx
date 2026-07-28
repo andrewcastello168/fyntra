@@ -4,21 +4,21 @@ import { EmptyState } from "@/src/components/EmptyState";
 import { colors, shadow } from "@/src/theme";
 export default function HomeScreen() {
   const { user } = useAuth();
-  const name = user?.profile?.full_name || user?.email || "Anda";
+  const name = user?.profile?.full_name || user?.email || "there";
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>RINGKASAN KEUANGAN</Text>
-      <Text style={styles.title}>Halo, {name}</Text>
+      <Text style={styles.eyebrow}>FINANCIAL SUMMARY</Text>
+      <Text style={styles.title}>Hello, {name}</Text>
       <View style={styles.card}>
-        <Text style={styles.cardLabel}>TOTAL SALDO</Text>
-        <Text style={styles.unavailable}>Belum tersedia</Text>
+        <Text style={styles.cardLabel}>TOTAL BALANCE</Text>
+        <Text style={styles.unavailable}>Not available yet</Text>
         <Text style={styles.cardHint}>
-          Data saldo akan muncul setelah akun terhubung.
+          Balance data will appear once your accounts are connected.
         </Text>
       </View>
       <EmptyState
-        title="Dashboard sedang disiapkan"
-        message="Belum ada data akun, periode anggaran, atau transaksi untuk ditampilkan."
+        title="Dashboard coming soon"
+        message="There are no account, budget period, or transaction data to display yet."
       />
     </ScrollView>
   );

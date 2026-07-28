@@ -26,7 +26,7 @@ export default function RegisterScreen() {
     setLocalError("");
     if (!fullName || !email || password.length < 8)
       return setLocalError(
-        "Nama, email, dan kata sandi minimal 8 karakter wajib diisi.",
+        "Name and email are required, and the password must be at least 8 characters.",
       );
     setLoading(true);
     try {
@@ -37,7 +37,7 @@ export default function RegisterScreen() {
         password,
       });
       if (!signedIn) {
-        setLocalError("Registrasi berhasil. Silakan masuk untuk melanjutkan.");
+        setLocalError("Sign-up successful. Log in to continue.");
         router.replace("/login" as never);
       }
     } catch {
@@ -56,29 +56,29 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.brand}>
-          <Text style={styles.kicker}>MULAI HARI INI</Text>
-          <Text style={styles.title}>Buat akun Anda.</Text>
+          <Text style={styles.kicker}>GET STARTED TODAY</Text>
+          <Text style={styles.title}>Create your account.</Text>
           <Text style={styles.subtitle}>
-            Catat pemasukan dan pengeluaran dengan aman.
+            Safely track your income and expenses.
           </Text>
         </View>
         <View style={styles.form}>
           {localError || error ? (
-            <ErrorState message={localError || error || "Registrasi gagal."} />
+            <ErrorState message={localError || error || "Sign-up failed."} />
           ) : null}
           <TextInput
-            label="Nama lengkap"
+            label="Full name"
             value={fullName}
             onChangeText={setFullName}
             autoComplete="name"
-            placeholder="Nama Anda"
+            placeholder="Your name"
           />
           <TextInput
-            label="Username (opsional)"
+            label="Username (optional)"
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
-            placeholder="nama pengguna"
+            placeholder="username"
           />
           <TextInput
             label="Email"
@@ -90,18 +90,18 @@ export default function RegisterScreen() {
             placeholder="nama@email.com"
           />
           <TextInput
-            label="Kata sandi"
+            label="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoComplete="new-password"
-            placeholder="Minimal 8 karakter"
+            placeholder="At least 8 characters"
           />
-          <Button label="Buat akun" onPress={submit} loading={loading} />
+          <Button label="Create account" onPress={submit} loading={loading} />
           <Text style={styles.footer}>
-            Sudah punya akun?{" "}
+            Already have an account?{" "}
             <Link href={"/login" as never} style={styles.link}>
-              Masuk
+              Log in
             </Link>
           </Text>
         </View>

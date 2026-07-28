@@ -26,9 +26,9 @@ export default function TabsLayout() {
       })}
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="accounts" options={{ title: "Akun" }} />
-      <Tabs.Screen name="transactions" options={{ title: "Transaksi" }} />
-      <Tabs.Screen name="settings" options={{ title: "Pengaturan" }} />
+      <Tabs.Screen name="accounts" options={{ title: "Accounts" }} />
+      <Tabs.Screen name="transactions" options={{ title: "Transactions" }} />
+      <Tabs.Screen name="settings" options={{ title: "Settings" }} />
     </Tabs>
   );
 }

@@ -4,7 +4,7 @@ import { useAuth } from "@/src/auth/AuthProvider";
 
 export default function Index() {
   const { isLoading, user } = useAuth();
-  if (isLoading) return <LoadingState label="Memulihkan sesi Anda..." />;
+  if (isLoading) return <LoadingState label="Restoring your session..." />;
   return (
     <Redirect href={user ? ("/(app)/(tabs)" as never) : ("/login" as never)} />
   );
