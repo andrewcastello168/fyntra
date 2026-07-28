@@ -14,7 +14,12 @@ export const colors = {
 };
 
 export const shadow = Platform.select({
-  ios: { shadowColor: "#0F172A", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  ios: {
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
   android: { elevation: 3 },
   default: {},
 });
