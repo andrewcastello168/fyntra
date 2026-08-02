@@ -30,6 +30,19 @@ export class AuthController {
   }
 
   @UseGuards(SupabaseAuthGuard)
+  @Post('logout')
+  logout(@Headers('authorization') authorization?: string) {
+    if (!authorization?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Bearer token tidak ditemukan');
+    }
+
+    const accessToken = authorization.substring(7);
+    const envService = process.env.APP_ENV as SupabaseMode;
+
+    return this.authService.logout(accessToken, envService);
+  }
+
+  @UseGuards(SupabaseAuthGuard)
   @Get('me')
   getMe(
     @Headers('authorization') authorization?: string,

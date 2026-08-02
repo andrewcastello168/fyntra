@@ -41,7 +41,6 @@ export class AccountsService {
       .orderBy('account_name', 'asc');
 
     return {
-      message: 'Daftar akun berhasil diambil.',
       data: accounts.map((account) => ({
         id: Number(account.id),
         accountName: account.account_name,

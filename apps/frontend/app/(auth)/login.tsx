@@ -22,12 +22,14 @@ export default function LoginScreen() {
   const [localError, setLocalError] = useState("");
   async function submit() {
     setLocalError("");
-    if (!email || !password)
+    if (!email || !password) {
       return setLocalError("Email and password are required.");
+    }
     setLoading(true);
     try {
       await login(email.trim(), password);
     } catch (err) {
+      console.log(err);
       console.log("Error Test: ", err);
       /* provider exposes the API error */
     } finally {

@@ -173,4 +173,21 @@ export class AuthService {
       },
     };
   }
+
+  async logout(accessToken: string, envService: SupabaseMode) {
+    const supabaseClient = this.supabaseService.getClient(envService);
+
+    const { error } = await supabaseClient.auth.admin.signOut(
+      accessToken,
+      'local',
+    );
+
+    if (error) {
+      throw new UnauthorizedException(error.message);
+    }
+
+    return {
+      message: 'Logout berhasil',
+    };
+  }
 }

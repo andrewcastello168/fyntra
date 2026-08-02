@@ -17,7 +17,7 @@ import { DeleteAccountDto } from './dto/delete-account.dto';
 export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 
-  @Post()
+  @Post('/accounts')
   @UseGuards(SupabaseAuthGuard)
   create(
     @Body() createAccountDto: CreateAccountDto,
@@ -28,13 +28,13 @@ export class AccountsController {
     return this.accountsService.create(createAccountDto, userId);
   }
 
-  @Get()
+  @Get('/accounts')
   @UseGuards(SupabaseAuthGuard)
   findAll(@Req() request: AuthenticatedRequest) {
     return this.accountsService.findAll(request.user.id);
   }
 
-  @Delete('/')
+  @Delete('/accounts')
   @UseGuards(SupabaseAuthGuard)
   delete(
     @Body() deleteAccountDto: DeleteAccountDto,

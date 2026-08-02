@@ -2,8 +2,48 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "@/src/auth/AuthProvider";
 import { EmptyState } from "@/src/components/EmptyState";
 import { colors, shadow } from "@/src/theme";
+import { useEffect, useState } from "react";
+import { apiFetch, getStoredAccessToken } from "@/src/api/client";
+
+type Account = {
+  id: number;
+  accountName: string;
+  accountType: string;
+  currentBalance: number;
+  isActive: boolean;
+};
+
+type AccountResponse = {
+  data: Account[];
+};
+
 export default function HomeScreen() {
   const { user } = useAuth();
+
+  const getAccounts = async () => {
+    try {
+      const token = await getStoredAccessToken();
+
+      if (!token) {
+        console.log("Token tidak tersedia");
+        return;
+      }
+
+      const result = await apiFetch<AccountResponse>("/accounts", {}, token);
+
+      console.log("Data accounts:", result);
+
+      // setAccounts(result);
+    } catch (error) {
+      console.log("Error getAccounts:", error);
+    }
+  };
+
+  useEffect(() => {
+    console.log("User dari AuthProvider:", user);
+    void getAccounts();
+  }, [user]);
+
   const name = user?.profile?.full_name || user?.email || "there";
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
