@@ -17,6 +17,8 @@ export type ThemeColors = {
   background: string;
   surface: string;
   elevatedSurface: string;
+  surfaceElevated: string;
+  inputBackground: string;
   textPrimary: string;
   textSecondary: string;
   border: string;
@@ -29,6 +31,7 @@ export type ThemeColors = {
   primarySurface: string;
   onPrimary: string;
   placeholder: string;
+  textMuted: string;
   focus: string;
   transfer: string;
   transferSurface: string;
@@ -81,6 +84,8 @@ const lightColors: ThemeColors = {
   background: "#F7F7F3",
   surface: "#FFFFFF",
   elevatedSurface: "#FFFFFF",
+  surfaceElevated: "#FFFFFF",
+  inputBackground: "#FFFFFF",
   textPrimary: "#20231F",
   textSecondary: "#6B7268",
   border: "#D9DDD4",
@@ -93,6 +98,7 @@ const lightColors: ThemeColors = {
   primarySurface: "#E8F1FB",
   onPrimary: "#FFFFFF",
   placeholder: "#9AA198",
+  textMuted: "#858D82",
   focus: "#2563A8",
   transfer: "#4C6F9E",
   transferSurface: "#EAF0F8",
@@ -103,6 +109,8 @@ const darkColors: ThemeColors = {
   background: "#171A17",
   surface: "#202520",
   elevatedSurface: "#272D27",
+  surfaceElevated: "#2B322D",
+  inputBackground: "#1D221E",
   textPrimary: "#F1F2EC",
   textSecondary: "#AEB6A8",
   border: "#343C34",
@@ -115,6 +123,7 @@ const darkColors: ThemeColors = {
   primarySurface: "#20354C",
   onPrimary: "#101A27",
   placeholder: "#7E897D",
+  textMuted: "#899487",
   focus: "#8DB9E5",
   transfer: "#A8C6E6",
   transferSurface: "#2B3D53",

@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiFetch, getStoredAccessToken } from "@/src/api/client";
 import { Account, AccountsResponse } from "@/src/api/types";
@@ -144,6 +144,8 @@ export default function AccountsScreen() {
 
   if (loading) return <LoadingState label="Loading accounts..." />;
 
+  const totalBalance = accounts.reduce((sum, account) => sum + account.currentBalance, 0);
+
   return (
     <>
       <ScrollView
@@ -176,10 +178,14 @@ export default function AccountsScreen() {
           </Pressable>
         </View>
         {error ? <ErrorState message={error} /> : null}
+        <View style={styles.totalBalance}>
+          <View style={styles.totalCopy}><Text style={styles.totalLabel}>TOTAL BALANCE</Text><Text style={styles.totalValue}>{isBalanceVisible ? formatCurrency(totalBalance) : maskBalance()}</Text></View>
+          <BalanceVisibilityButton />
+        </View>
         {accounts.length ? (
           <View style={styles.list}>
             {accounts.map((account, index) => (
-              <View key={account.id} style={styles.accountRow} accessibilityLabel={`${account.accountName}, balance ${isBalanceVisible ? formatCurrency(account.currentBalance) : "hidden"}`}>
+              <Pressable key={account.id} style={({ pressed }) => [styles.accountRow, pressed && styles.pressed]} accessibilityRole="button" onPress={() => router.push(`/account/${account.id}` as never)} accessibilityLabel={`${account.accountName}, balance ${isBalanceVisible ? formatCurrency(account.currentBalance) : "hidden"}`}>
                 <View style={[styles.identityRail, { backgroundColor: index % 2 ? colors.transfer : colors.primary }]} />
                 <View style={styles.accountMain}>
                   <View style={styles.accountTopline}>
@@ -194,12 +200,12 @@ export default function AccountsScreen() {
                   </View>
                   <View style={styles.accountFooter}>
                     <Text style={styles.status}>{account.isActive ? "Available for transactions" : "Inactive"}</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Deactivate ${account.accountName}`} onPress={() => deactivateAccount(account)} hitSlop={8}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Deactivate ${account.accountName}`} onPress={(event) => { event.stopPropagation(); deactivateAccount(account); }} hitSlop={8}>
                       <Text style={styles.deactivate}>Deactivate</Text>
                     </Pressable>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         ) : (
@@ -306,7 +312,12 @@ function createStyles(colors: ThemeColors) {
       lineHeight: 30,
     },
     list: {},
+    totalBalance: { alignItems: "center", backgroundColor: colors.surface, flexDirection: "row", justifyContent: "space-between", minHeight: 104, paddingHorizontal: 18 },
+    totalCopy: { gap: 6 },
+    totalLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "800", letterSpacing: 1 },
+    totalValue: { color: colors.textPrimary, fontSize: 28, fontWeight: "800" },
     accountRow: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", minHeight: 116, paddingVertical: 18 },
+    pressed: { opacity: 0.65 },
     identityRail: { alignSelf: "flex-start", height: 38, marginTop: 2, width: 5 },
     accountMain: { flex: 1, gap: 15, paddingLeft: 12 },
     accountTopline: { alignItems: "flex-start", flexDirection: "row", gap: 12 },

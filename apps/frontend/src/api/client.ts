@@ -53,24 +53,32 @@ export async function saveSession(accessToken: string, refreshToken: string) {
     SecureStore.setItemAsync("accessToken", accessToken),
     SecureStore.setItemAsync("refreshToken", refreshToken),
   ]);
-  if (Platform.OS !== "web") {
-    try {
-      await SecureStore.setItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY, accessToken, {
-        requireAuthentication: true,
-      });
-      await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, "true");
-    } catch {
-      await Promise.all([
-        SecureStore.deleteItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY),
-        SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY),
-      ]);
-    }
-  }
 }
 
 export async function hasBiometricCredential() {
   if (Platform.OS === "web") return false;
   return (await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY)) === "true";
+}
+
+export async function setBiometricCredential(accessToken: string) {
+  if (Platform.OS === "web") return false;
+  try {
+    await SecureStore.setItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY, accessToken, {
+      requireAuthentication: true,
+    });
+    await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, "true");
+    return true;
+  } catch {
+    await disableBiometricLogin();
+    return false;
+  }
+}
+
+export async function disableBiometricLogin() {
+  await Promise.all([
+    SecureStore.deleteItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY),
+    SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY),
+  ]);
 }
 
 export async function getBiometricAccessToken() {

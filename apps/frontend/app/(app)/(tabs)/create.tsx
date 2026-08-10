@@ -229,7 +229,7 @@ export default function CreateScreen() {
   if (loading) return <LoadingState label="Loading accounts..." />;
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={insets.top}>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[

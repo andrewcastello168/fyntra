@@ -1,18 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet } from "react-native";
+import { Alert, Pressable, StyleSheet } from "react-native";
 import { useBalanceVisibility } from "@/src/privacy/BalanceVisibilityProvider";
 import { useTheme } from "@/src/theme";
 
 export function BalanceVisibilityButton() {
   const { colors } = useTheme();
-  const { isBalanceVisible, toggleBalanceVisibility } = useBalanceVisibility();
+  const { isBalanceVisible, unlockBalances, lockBalances } = useBalanceVisibility();
+  async function handlePress() {
+    if (isBalanceVisible) return lockBalances();
+    if (!(await unlockBalances())) {
+      Alert.alert("Balances remain hidden", "Biometric verification was cancelled or is unavailable on this device.");
+    }
+  }
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={isBalanceVisible ? "Hide balances" : "Show balances"}
       accessibilityState={{ checked: isBalanceVisible }}
-      onPress={toggleBalanceVisibility}
+      onPress={() => void handlePress()}
       hitSlop={8}
       style={({ pressed }) => [styles.button, pressed && { opacity: 0.65 }]}
     >

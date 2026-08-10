@@ -4,7 +4,7 @@
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "backgroundColor": "#F6F8FC",
+    "backgroundColor": "#F7F7F3",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
@@ -39,7 +39,7 @@
       [
         "expo-navigation-bar",
         {
-          "backgroundColor": "#F6F8FC",
+          "backgroundColor": "#F7F7F3",
           "barStyle": "dark",
           "borderColor": "#E2E8F0",
           "position": "relative",
@@ -53,9 +53,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#F7F7F3",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#171A17"
           }
         }
       ]

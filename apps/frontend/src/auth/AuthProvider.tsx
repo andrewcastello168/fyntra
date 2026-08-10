@@ -165,9 +165,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const initializeAuth = async () => {
       try {
         await refreshUser();
-      } catch (error) {
-        console.log("Gagal memulihkan session:", error);
-
+      } catch {
         await clearSession();
         setUser(null);
       } finally {
