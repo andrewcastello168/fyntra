@@ -49,6 +49,8 @@ interface TransactionDetailRow {
   id: number | string;
   accountId: number | string;
   accountName: string;
+  destinationAccountId: number | string | null;
+  destinationAccountName: string | null;
   accountType: string;
   currentBalance: number | string;
   budgetPeriodId: number | string;
@@ -79,6 +81,8 @@ type TransactionListRow = {
   id: string | number;
   accountId: string | number | null;
   accountName: string | null;
+  destinationAccountId: string | number | null;
+  destinationAccountName: string | null;
   accountType: string | null;
   budgetPeriodId: string | number | null;
   periodStartDate: Date | string | null;
@@ -557,6 +561,13 @@ export class TransactionsService {
           't.user_id',
         );
       })
+      .leftJoin('accounts as destination', function () {
+        this.on('destination.id', '=', 't.destination_account_id').andOn(
+          'destination.user_id',
+          '=',
+          't.user_id',
+        );
+      })
       .leftJoin('budget_periods as bp', function () {
         this.on('bp.id', '=', 't.budget_period_id').andOn(
           'bp.user_id',
@@ -569,6 +580,8 @@ export class TransactionsService {
         accountId: 't.account_id',
         accountName: 'a.account_name',
         accountType: 'a.account_type',
+        destinationAccountId: 't.destination_account_id',
+        destinationAccountName: 'destination.account_name',
         budgetPeriodId: 't.budget_period_id',
         periodStartDate: 'bp.start_date',
         periodEndDate: 'bp.end_date',
@@ -593,6 +606,11 @@ export class TransactionsService {
 
         accountId:
           transaction.accountId === null ? null : Number(transaction.accountId),
+
+        destinationAccountId:
+          transaction.destinationAccountId === null
+            ? null
+            : Number(transaction.destinationAccountId),
 
         budgetPeriodId:
           transaction.budgetPeriodId === null
@@ -621,6 +639,13 @@ export class TransactionsService {
           't.user_id',
         );
       })
+      .leftJoin('accounts as destination', function () {
+        this.on('destination.id', '=', 't.destination_account_id').andOn(
+          'destination.user_id',
+          '=',
+          't.user_id',
+        );
+      })
       .leftJoin('budget_periods as bp', function () {
         this.on('bp.id', '=', 't.budget_period_id').andOn(
           'bp.user_id',
@@ -637,6 +662,8 @@ export class TransactionsService {
         accountId: 't.account_id',
         accountName: 'a.account_name',
         accountType: 'a.account_type',
+        destinationAccountId: 't.destination_account_id',
+        destinationAccountName: 'destination.account_name',
         currentBalance: 'a.current_balance',
         budgetPeriodId: 't.budget_period_id',
         periodStartDate: 'bp.start_date',

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors } from "@/src/theme";
+import { useTheme } from "@/src/theme";
 export function EmptyState({
   title,
   message,
@@ -7,6 +7,9 @@ export function EmptyState({
   title: string;
   message: string;
 }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
@@ -14,13 +17,15 @@ export function EmptyState({
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { padding: 24, alignItems: "center", gap: 8 },
-  title: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  message: {
-    color: colors.muted,
-    fontSize: 15,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-});
+function createStyles(colors: ReturnType<typeof useTheme>["colors"]) {
+  return StyleSheet.create({
+    container: { paddingVertical: 24, gap: 6 },
+    title: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
+    message: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      textAlign: "left",
+      lineHeight: 22,
+    },
+  });
+}

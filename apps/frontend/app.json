@@ -4,6 +4,7 @@
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "backgroundColor": "#F6F8FC",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
@@ -28,6 +29,24 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Personal Tracker to use Face ID to unlock your session."
+        }
+      ],
+      "expo-system-ui",
+      [
+        "expo-navigation-bar",
+        {
+          "backgroundColor": "#F6F8FC",
+          "barStyle": "dark",
+          "borderColor": "#E2E8F0",
+          "position": "relative",
+          "visibility": "visible",
+          "behavior": "inset-swipe"
+        }
+      ],
       [
         "expo-splash-screen",
         {

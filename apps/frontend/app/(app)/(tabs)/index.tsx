@@ -1,96 +1,133 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useAuth } from "@/src/auth/AuthProvider";
-import { EmptyState } from "@/src/components/EmptyState";
-import { colors, shadow } from "@/src/theme";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiFetch, getStoredAccessToken } from "@/src/api/client";
-
-type Account = {
-  id: number;
-  accountName: string;
-  accountType: string;
-  currentBalance: number;
-  isActive: boolean;
-};
-
-type AccountResponse = {
-  data: Account[];
-};
+import { BalanceVisibilityButton } from "@/src/components/BalanceVisibilityButton";
+import { EmptyState } from "@/src/components/EmptyState";
+import { ErrorState } from "@/src/components/ErrorState";
+import { LoadingState } from "@/src/components/LoadingState";
+import { ActivePeriodResponse, BudgetPeriod, Dashboard, DashboardResponse } from "@/src/api/types";
+import { useBalanceVisibility, maskBalance } from "@/src/privacy/BalanceVisibilityProvider";
+import { ThemeColors, useTheme } from "@/src/theme";
+import { errorMessage, formatCurrency, formatDate, transactionColor, transactionLabel } from "@/src/utils/format";
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const { isBalanceVisible } = useBalanceVisibility();
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [activePeriod, setActivePeriod] = useState<BudgetPeriod | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getAccounts = async () => {
+  const loadDashboard = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
     try {
       const token = await getStoredAccessToken();
-
-      if (!token) {
-        console.log("Token tidak tersedia");
-        return;
-      }
-
-      const result = await apiFetch<AccountResponse>("/accounts", {}, token);
-
-      console.log("Data accounts:", result);
-
-      // setAccounts(result);
-    } catch (error) {
-      console.log("Error getAccounts:", error);
+      if (!token) throw new Error("Login session not found.");
+      const [summary, period] = await Promise.all([
+        apiFetch<DashboardResponse>("/home/summary", {}, token),
+        apiFetch<ActivePeriodResponse>("/budget-periods/active", {}, token),
+      ]);
+      setDashboard(summary.data);
+      setActivePeriod(period.data);
+    } catch (loadError) {
+      setError(errorMessage(loadError, "The summary could not be loaded."));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    console.log("User dari AuthProvider:", user);
-    void getAccounts();
-  }, [user]);
+  useFocusEffect(useCallback(() => { void loadDashboard(); }, [loadDashboard]));
 
-  const name = user?.profile?.full_name || user?.email || "there";
+  if (loading && !dashboard) return <LoadingState label="Loading summary..." />;
+  if (error && !dashboard) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.errorContent, { paddingTop: insets.top + 12 }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDashboard(true)} />}>
+        <ErrorState message={error} />
+      </ScrollView>
+    );
+  }
+  if (!dashboard) return null;
+
+  const money = (value: number) => isBalanceVisible ? formatCurrency(value) : maskBalance();
+  const budget = Math.max(0, dashboard.mid.spendingBudget);
+  const remaining = Math.max(0, dashboard.mid.remainingBudget);
+  const spent = Math.max(0, budget - remaining);
+  const usedPercent = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+  const totalDays = activePeriod ? daysBetween(activePeriod.startDate, activePeriod.endDate) + 1 : 0;
+  const expectedRemaining = totalDays > 0 ? budget * (dashboard.mid.remainingDays / totalDays) : remaining;
+  const onTrack = remaining >= expectedRemaining;
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>FINANCIAL SUMMARY</Text>
-      <Text style={styles.title}>Hello, {name}</Text>
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>TOTAL BALANCE</Text>
-        <Text style={styles.unavailable}>Not available yet</Text>
-        <Text style={styles.cardHint}>
-          Balance data will appear once your accounts are connected.
-        </Text>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: 36 + insets.bottom }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDashboard(true)} />}>
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>PERSONAL FINANCE</Text>
+          <Text style={styles.title}>Your money, at a glance</Text>
+        </View>
       </View>
-      <EmptyState
-        title="Dashboard coming soon"
-        message="There are no account, budget period, or transaction data to display yet."
-      />
+      {error ? <ErrorState message={error} /> : null}
+
+      <View style={styles.balanceBlock}>
+        <Text style={styles.metricLabel}>Current balance</Text>
+        <View style={styles.balanceLine}>
+          <Text style={styles.balance}>{money(dashboard.top.currentBalance)}</Text>
+          <BalanceVisibilityButton />
+        </View>
+        <Text style={styles.balanceHint}>Across your active accounts</Text>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeading}>
+          <View><Text style={styles.sectionTitle}>Budget for this period</Text><Text style={styles.sectionMeta}>{activePeriod ? `${formatDate(activePeriod.startDate)} — ${formatDate(activePeriod.endDate)}` : "No active budget period"}</Text></View>
+          {activePeriod ? <Text style={[styles.status, { color: onTrack ? colors.success : colors.warning }]}>{onTrack ? "On track" : "Spending faster"}</Text> : null}
+        </View>
+        {activePeriod ? (
+          <View style={styles.budgetPanel} accessibilityLabel={`Budget ${usedPercent} percent used`}>
+            <View style={styles.budgetHeadline}>
+              <View><Text style={styles.metricLabel}>Available budget</Text><Text style={styles.budgetTotal}>{money(budget)}</Text></View>
+              <View style={styles.percentBlock}><Text style={styles.percent}>{usedPercent}%</Text><Text style={styles.metricLabel}>used</Text></View>
+            </View>
+            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${usedPercent}%`, backgroundColor: usedPercent > 85 ? colors.warning : colors.primary }]} /></View>
+            <View style={styles.valueGrid}>
+              <BudgetValue label="Spent" value={money(spent)} styles={styles} />
+              <BudgetValue label="Remaining" value={money(remaining)} styles={styles} align="right" />
+            </View>
+            <View style={styles.contextRow}>
+              <ContextValue label="Days left" value={String(dashboard.mid.remainingDays)} styles={styles} />
+              <ContextValue label="Safe per day" value={money(dashboard.mid.availablePerDay)} styles={styles} align="right" />
+            </View>
+          </View>
+        ) : <EmptyState title="Set a budget period" message="Start one from an income transaction to track spending progress." />}
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>Recent activity</Text><Text style={styles.sectionMeta}>Latest 5</Text></View>
+        {dashboard.bottom.length ? <View>{dashboard.bottom.map((transaction) => <View key={transaction.id} style={styles.transactionRow}><View style={styles.transactionCopy}><Text style={styles.transactionTitle}>{transaction.category || transactionLabel(transaction.transactionType)}</Text><Text style={styles.transactionMeta}>{transaction.accountName}{transaction.destinationAccountName ? ` → ${transaction.destinationAccountName}` : ""} · {formatDate(transaction.transactionDate)}</Text></View><Text style={[styles.transactionAmount, { color: transactionColor(transaction.transactionType, colors) }]}>{transaction.transactionType === "EXPENSE" ? "-" : "+"}{money(transaction.amount)}</Text></View>)}</View> : <EmptyState title="No transactions yet" message="Recent transactions will appear here." />}
+      </View>
     </ScrollView>
   );
 }
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 24, gap: 16 },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 24,
-    gap: 8,
-    ...shadow,
-  },
-  cardLabel: {
-    color: "#DBEAFE",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  unavailable: { color: "#fff", fontSize: 30, fontWeight: "800" },
-  cardHint: { color: "#DBEAFE", fontSize: 14, lineHeight: 20 },
-});
+
+function daysBetween(start: string, end: string) {
+  const startDate = new Date(`${start.slice(0, 10)}T00:00:00Z`).getTime();
+  const endDate = new Date(`${end.slice(0, 10)}T00:00:00Z`).getTime();
+  return Math.max(0, Math.round((endDate - startDate) / 86400000));
+}
+
+type ScreenStyles = ReturnType<typeof createStyles>;
+function BudgetValue({ label, value, styles, align = "left" }: { label: string; value: string; styles: ScreenStyles; align?: "left" | "right" }) { return <View style={align === "right" ? styles.alignRight : undefined}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.budgetValue}>{value}</Text></View>; }
+function ContextValue({ label, value, styles, align = "left" }: { label: string; value: string; styles: ScreenStyles; align?: "left" | "right" }) { return <View style={align === "right" ? styles.alignRight : undefined}><Text style={styles.contextLabel}>{label}</Text><Text style={styles.contextValue}>{value}</Text></View>; }
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.background }, content: { gap: 28, padding: 20 }, errorContent: { flexGrow: 1, justifyContent: "center", padding: 24 }, header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }, headerCopy: { flex: 1 }, eyebrow: { color: colors.primary, fontSize: 11, fontWeight: "800", letterSpacing: 1.4, marginBottom: 8 }, title: { color: colors.textPrimary, fontSize: 25, fontWeight: "800", letterSpacing: -0.4 }, balanceBlock: { borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: 20, paddingTop: 4 }, balanceLine: { alignItems: "center", flexDirection: "row", gap: 6 }, metricLabel: { color: colors.textSecondary, fontSize: 13 }, balance: { color: colors.textPrimary, flexShrink: 1, fontSize: 36, fontWeight: "800", letterSpacing: -1, marginTop: 5 }, balanceHint: { color: colors.textSecondary, fontSize: 13, marginTop: 5 }, section: { gap: 14 }, sectionHeading: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", gap: 12 }, sectionTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" }, sectionMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 4 }, status: { fontSize: 12, fontWeight: "800" }, budgetPanel: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, gap: 18, padding: 18 }, budgetHeadline: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between" }, budgetTotal: { color: colors.textPrimary, fontSize: 28, fontWeight: "800", marginTop: 4 }, percentBlock: { alignItems: "flex-end" }, percent: { color: colors.primary, fontSize: 26, fontWeight: "800" }, progressTrack: { backgroundColor: colors.border, height: 14 }, progressFill: { height: 14 }, valueGrid: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 16 }, alignRight: { alignItems: "flex-end" }, budgetValue: { color: colors.textPrimary, fontSize: 16, fontWeight: "800", marginTop: 4 }, contextRow: { flexDirection: "row", justifyContent: "space-between" }, contextLabel: { color: colors.textSecondary, fontSize: 12 }, contextValue: { color: colors.primary, fontSize: 16, fontWeight: "800", marginTop: 4 }, transactionRow: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 12, paddingVertical: 14 }, transactionCopy: { flex: 1, gap: 4 }, transactionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" }, transactionMeta: { color: colors.textSecondary, fontSize: 12 }, transactionAmount: { fontSize: 13, fontWeight: "800", textAlign: "right" },
+  });
+}

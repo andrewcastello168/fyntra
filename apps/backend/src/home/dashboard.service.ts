@@ -117,6 +117,13 @@ export class DashboardService {
     const detailBottom = await this.knexService
       .connection('transactions as tr')
       .join('accounts as ac', 'tr.account_id', 'ac.id')
+      .leftJoin('accounts as destinationAc', function () {
+        this.on('destinationAc.id', '=', 'tr.destination_account_id').andOn(
+          'destinationAc.user_id',
+          '=',
+          'tr.user_id',
+        );
+      })
       .where('tr.user_id', userId)
       .where('ac.is_active', true)
       .orderBy('tr.transaction_date', 'desc')
@@ -127,7 +134,9 @@ export class DashboardService {
         'tr.amount',
         'tr.transaction_type as transactionType',
         'tr.transaction_date as transactionDate',
+        'tr.destination_account_id as destinationAccountId',
         'ac.account_name as accountName',
+        'destinationAc.account_name as destinationAccountName',
         'tr.created_at as createdAt',
       )
       .limit(5);

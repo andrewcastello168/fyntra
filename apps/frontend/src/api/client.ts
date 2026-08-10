@@ -1,7 +1,10 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "");
 export const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? "sim";
+const BIOMETRIC_ACCESS_TOKEN_KEY = "biometricAccessToken";
+const BIOMETRIC_ENABLED_KEY = "biometricEnabled";
 
 type ApiErrorBody = { message?: string | string[] };
 
@@ -50,10 +53,38 @@ export async function saveSession(accessToken: string, refreshToken: string) {
     SecureStore.setItemAsync("accessToken", accessToken),
     SecureStore.setItemAsync("refreshToken", refreshToken),
   ]);
+  if (Platform.OS !== "web") {
+    try {
+      await SecureStore.setItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY, accessToken, {
+        requireAuthentication: true,
+      });
+      await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, "true");
+    } catch {
+      await Promise.all([
+        SecureStore.deleteItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY),
+        SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY),
+      ]);
+    }
+  }
 }
+
+export async function hasBiometricCredential() {
+  if (Platform.OS === "web") return false;
+  return (await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY)) === "true";
+}
+
+export async function getBiometricAccessToken() {
+  if (Platform.OS === "web") return null;
+  return SecureStore.getItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY, {
+    requireAuthentication: true,
+  });
+}
+
 export async function clearSession() {
   await Promise.all([
     SecureStore.deleteItemAsync("accessToken"),
     SecureStore.deleteItemAsync("refreshToken"),
+    SecureStore.deleteItemAsync(BIOMETRIC_ACCESS_TOKEN_KEY),
+    SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY),
   ]);
 }

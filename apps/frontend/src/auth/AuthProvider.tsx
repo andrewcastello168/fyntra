@@ -45,10 +45,12 @@ type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
 
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<boolean>;
   refreshUser: () => Promise<void>;
+  restoreWithAccessToken: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -58,6 +60,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const clearError = () => setError(null);
 
   const refreshUser = async () => {
     const token = await getStoredAccessToken();
@@ -69,6 +72,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     const result = await apiFetch<MeResponse>("/auth/me", {}, token);
 
+    setUser(result.user);
+  };
+
+  const restoreWithAccessToken = async (accessToken: string) => {
+    const result = await apiFetch<MeResponse>("/auth/me", {}, accessToken);
     setUser(result.user);
   };
 
@@ -134,10 +142,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
   };
 
   const logout = async () => {
-    await clearSession();
-
-    setUser(null);
-    setError(null);
+    let token: string | null = null;
+    try {
+      token = await getStoredAccessToken();
+    } catch {
+      // Continue with local cleanup if storage is unavailable.
+    }
+    try {
+      if (token) {
+        await apiFetch("/auth/logout", { method: "POST" }, token);
+      }
+    } catch {
+      // A missing or expired remote session is already logged out remotely.
+    } finally {
+      await clearSession().catch(() => undefined);
+      setUser(null);
+      setError(null);
+    }
   };
 
   useEffect(() => {
@@ -162,9 +183,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user,
       isLoading,
       error,
+      clearError,
       login,
       register,
       refreshUser,
+      restoreWithAccessToken,
       logout,
     }),
     [user, isLoading, error],

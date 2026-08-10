@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
-import { colors } from "@/src/theme";
+import { useTheme } from "@/src/theme";
 
 export function Button({
   label,
@@ -10,8 +10,11 @@ export function Button({
   label: string;
   onPress: () => void;
   loading?: boolean;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "destructive";
 }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -20,20 +23,25 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        variant === "secondary" ? styles.secondary : styles.primary,
+        variant === "secondary"
+          ? styles.secondary
+          : variant === "destructive"
+            ? styles.destructive
+            : styles.primary,
         pressed && styles.pressed,
         loading && styles.disabled,
       ]}
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === "primary" ? "#fff" : colors.primary}
+          color={variant === "secondary" ? colors.primary : colors.onPrimary}
         />
       ) : (
         <Text
           style={[
             styles.label,
             variant === "secondary" && styles.secondaryLabel,
+            variant === "destructive" && styles.destructiveLabel,
           ]}
         >
           {label}
@@ -42,22 +50,26 @@ export function Button({
     </Pressable>
   );
 }
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 52,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  primary: { backgroundColor: colors.primary },
-  secondary: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pressed: { opacity: 0.82 },
-  disabled: { opacity: 0.55 },
-  label: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  secondaryLabel: { color: colors.primary },
-});
+function createStyles(colors: ReturnType<typeof useTheme>["colors"]) {
+  return StyleSheet.create({
+    base: {
+      minHeight: 52,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 20,
+    },
+    primary: { backgroundColor: colors.primary },
+    secondary: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    destructive: { backgroundColor: colors.danger },
+    pressed: { opacity: 0.82 },
+    disabled: { opacity: 0.55 },
+    label: { color: colors.onPrimary, fontSize: 16, fontWeight: "600", letterSpacing: 0.1 },
+    secondaryLabel: { color: colors.primary },
+    destructiveLabel: { color: colors.onPrimary },
+  });
+}
