@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,6 +20,7 @@ import {
   AccountsResponse,
   ActivePeriodResponse,
   BudgetPeriod,
+  TransactionDraftResponse,
   TransactionType,
 } from "@/src/api/types";
 import { Button } from "@/src/components/Button";
@@ -30,7 +32,10 @@ import { AmountInput } from "@/src/components/AmountInput";
 import { SelectField, SelectOption } from "@/src/components/SelectField";
 import { ThemeColors, useTheme } from "@/src/theme";
 import { errorMessage, formatCurrency } from "@/src/utils/format";
-import { maskBalance, useBalanceVisibility } from "@/src/privacy/BalanceVisibilityProvider";
+import {
+  maskBalance,
+  useBalanceVisibility,
+} from "@/src/privacy/BalanceVisibilityProvider";
 
 const transactionTypes: {
   key: TransactionType;
@@ -79,6 +84,11 @@ export default function CreateScreen() {
   const [startNewPeriod, setStartNewPeriod] = useState(false);
   const [savingPercentage, setSavingPercentage] = useState("20");
   const [periodEndDate, setPeriodEndDate] = useState("");
+  const [smartInputOpen, setSmartInputOpen] = useState(false);
+  const [smartInputText, setSmartInputText] = useState("");
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [smartInputError, setSmartInputError] = useState<string | null>(null);
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
 
   const loadDependencies = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -120,7 +130,9 @@ export default function CreateScreen() {
   function selectSourceAccount(nextId: number) {
     setAccountId(nextId);
     if (destinationAccountId === nextId) {
-      setDestinationAccountId(accounts.find((account) => account.id !== nextId)?.id ?? null);
+      setDestinationAccountId(
+        accounts.find((account) => account.id !== nextId)?.id ?? null,
+      );
     }
   }
 
@@ -128,9 +140,98 @@ export default function CreateScreen() {
     return accounts.map((account) => ({
       id: account.id,
       label: account.accountName,
-      secondary: isBalanceVisible ? formatCurrency(account.currentBalance) : maskBalance(),
+      secondary: isBalanceVisible
+        ? formatCurrency(account.currentBalance)
+        : maskBalance(),
       disabled: excludedId === account.id,
     }));
+  }
+
+  function openSmartInput() {
+    setSmartInputError(null);
+    setSmartInputOpen(true);
+  }
+
+  function closeSmartInput() {
+    if (generatingDraft) return;
+    setSmartInputOpen(false);
+    setSmartInputError(null);
+  }
+
+  async function generateDraft() {
+    const text = smartInputText.trim();
+
+    if (!text) {
+      setSmartInputError(
+        "Describe your transaction before generating a draft.",
+      );
+      return;
+    }
+
+    setGeneratingDraft(true);
+    setSmartInputError(null);
+
+    try {
+      const token = await getStoredAccessToken();
+      if (!token) throw new Error("Login session not found.");
+
+      const localDate = currentLocalDate();
+      const timeZone =
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const response = await apiFetch<TransactionDraftResponse>(
+        "/transaction-drafts",
+        {
+          method: "POST",
+          body: JSON.stringify({ text, localDate, timeZone }),
+        },
+        token,
+      );
+      const { draft, missingFields, warnings, accountResolution } =
+        response.data;
+
+      if (draft.transactionType) selectType(draft.transactionType);
+      if (draft.amount !== null) setAmount(String(draft.amount));
+      if (draft.transactionDate) setTransactionDate(draft.transactionDate);
+      if (draft.accountId !== null) selectSourceAccount(draft.accountId);
+      if (draft.destinationAccountId !== undefined) {
+        setDestinationAccountId(draft.destinationAccountId);
+      }
+      if (draft.category !== null) setCategory(draft.category);
+      if (draft.note !== null) setNote(draft.note);
+
+      const reviewMessages = [...warnings];
+      if (missingFields.length) {
+        reviewMessages.unshift(
+          `Review or complete these fields manually: ${missingFields
+            .map(draftFieldLabel)
+            .join(", ")}.`,
+        );
+      }
+      if (
+        accountResolution === "ambiguous" &&
+        !reviewMessages.some((message) =>
+          message.toLowerCase().includes("ambiguous"),
+        )
+      ) {
+        reviewMessages.push("Choose the correct account manually.");
+      }
+
+      setDraftNotice(
+        reviewMessages.length
+          ? `Draft added. ${reviewMessages.join(" ")}`
+          : "Draft added. Review every field, then save when it looks correct.",
+      );
+      setSmartInputOpen(false);
+    } catch (draftError) {
+      setSmartInputError(
+        errorMessage(
+          draftError,
+          "The draft could not be generated. You can continue manually.",
+        ),
+      );
+    } finally {
+      setGeneratingDraft(false);
+    }
   }
 
   function validateForm() {
@@ -229,157 +330,274 @@ export default function CreateScreen() {
   if (loading) return <LoadingState label="Loading accounts..." />;
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={insets.top}>
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 12, paddingBottom: 40 + insets.bottom },
-      ]}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void loadDependencies(true)}
-        />
-      }
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={insets.top}
     >
-      <Text style={styles.title}>Create transaction</Text>
-      <Text style={styles.subtitle}>
-        Choose a transaction type and enter its details.
-      </Text>
-      {error ? <ErrorState message={error} /> : null}
-      {!accounts.length ? (
-        <EmptyState
-          title="No accounts yet"
-          message="Create an account before recording a transaction."
-        />
-      ) : (
-        <>
-          <View style={styles.typeSelector}>
-            {transactionTypes.map((type) => (
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 12, paddingBottom: 40 + insets.bottom },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void loadDependencies(true)}
+          />
+        }
+      >
+        <Text style={styles.title}>Create transaction</Text>
+        <Text style={styles.subtitle}>
+          Choose a transaction type and enter its details.
+        </Text>
+        {error ? <ErrorState message={error} /> : null}
+        {!accounts.length ? (
+          <EmptyState
+            title="No accounts yet"
+            message="Create an account before recording a transaction."
+          />
+        ) : (
+          <>
+            <Button
+              label="✨ Quick Add"
+              onPress={openSmartInput}
+              variant="secondary"
+            />
+            {draftNotice ? (
+              <View accessibilityLiveRegion="polite" style={styles.draftNotice}>
+                <Text style={styles.draftNoticeTitle}>
+                  AI draft ready for review
+                </Text>
+                <Text style={styles.draftNoticeText}>{draftNotice}</Text>
+              </View>
+            ) : null}
+            <View style={styles.typeSelector}>
+              {transactionTypes.map((type) => (
+                <Pressable
+                  key={type.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: selectedType === type.key }}
+                  onPress={() => selectType(type.key)}
+                  style={[
+                    styles.typeOption,
+                    selectedType === type.key && styles.selectedType,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.typeLabel,
+                      selectedType === type.key && styles.selectedText,
+                    ]}
+                  >
+                    {type.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.typeDescription,
+                      selectedType === type.key && styles.selectedDescription,
+                    ]}
+                  >
+                    {type.description}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.amountIntro}>
+              <Text style={styles.sectionLabel}>HOW MUCH?</Text>
+              <Text style={styles.amountHint}>
+                Start with the number. You can add context below.
+              </Text>
+            </View>
+            <AmountInput
+              value={amount}
+              onChangeText={setAmount}
+              style={styles.amountInput}
+            />
+            <Text style={styles.sectionLabel}>WHERE?</Text>
+            <SelectField
+              label={selectedType === "TRANSFER" ? "Source account" : "Account"}
+              selectedId={accountId}
+              options={accountOptions()}
+              onSelect={selectSourceAccount}
+            />
+            {selectedType === "TRANSFER" ? (
+              <SelectField
+                label="Destination account"
+                selectedId={destinationAccountId}
+                options={accountOptions(accountId)}
+                onSelect={setDestinationAccountId}
+              />
+            ) : null}
+            <Text style={styles.sectionLabel}>WHEN AND WHY?</Text>
+            <TextInput
+              label="Transaction date"
+              value={transactionDate}
+              onChangeText={setTransactionDate}
+              placeholder="YYYY-MM-DD"
+            />
+            {selectedType !== "TRANSFER" ? (
+              <TextInput
+                label="Category (optional)"
+                value={category}
+                onChangeText={setCategory}
+                placeholder="Example: Groceries"
+              />
+            ) : null}
+            <TextInput
+              label="Note (optional)"
+              value={note}
+              onChangeText={setNote}
+              placeholder="Add a note"
+              multiline
+            />
+
+            {selectedType === "INCOME" ? (
+              <View style={styles.periodSection}>
+                <Text style={styles.sectionLabel}>BUDGET PERIOD</Text>
+                <View style={styles.periodToggle}>
+                  <View style={styles.periodCopy}>
+                    <Text style={styles.periodTitle}>
+                      Start a new budget period
+                    </Text>
+                    <Text style={styles.periodHint}>
+                      Enable this only when this income starts a new period.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={startNewPeriod}
+                    onValueChange={setStartNewPeriod}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={colors.surface}
+                  />
+                </View>
+              </View>
+            ) : null}
+            {startNewPeriod ? (
+              <>
+                <TextInput
+                  label="Savings percentage"
+                  value={savingPercentage}
+                  onChangeText={setSavingPercentage}
+                  keyboardType="decimal-pad"
+                  placeholder="20"
+                />
+                <TextInput
+                  label="Period end date"
+                  value={periodEndDate}
+                  onChangeText={setPeriodEndDate}
+                  placeholder="YYYY-MM-DD"
+                />
+              </>
+            ) : null}
+            <Button
+              label="Save transaction"
+              onPress={() => void submit()}
+              loading={submitting}
+            />
+          </>
+        )}
+      </ScrollView>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={smartInputOpen}
+        onRequestClose={closeSmartInput}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.modalBackdrop}
+        >
+          <ScrollView
+            accessibilityViewIsModal
+            contentContainerStyle={[
+              styles.smartInputSheetContent,
+              { paddingBottom: 24 + insets.bottom },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            style={styles.smartInputSheet}
+          >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleGroup}>
+                <Text style={styles.modalTitle}>Smart Input</Text>
+                <Text style={styles.modalDescription}>
+                  Describe one transaction. AI will fill a draft for you to
+                  review.
+                </Text>
+              </View>
               <Pressable
-                key={type.key}
                 accessibilityRole="button"
-                accessibilityState={{ selected: selectedType === type.key }}
-                onPress={() => selectType(type.key)}
-                style={[
-                  styles.typeOption,
-                  selectedType === type.key && styles.selectedType,
+                accessibilityLabel="Close Smart Input"
+                accessibilityState={{ disabled: generatingDraft }}
+                disabled={generatingDraft}
+                hitSlop={8}
+                onPress={closeSmartInput}
+                style={({ pressed }) => [
+                  styles.modalClose,
+                  pressed && styles.pressed,
+                  generatingDraft && styles.disabled,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.typeLabel,
-                    selectedType === type.key && styles.selectedText,
-                  ]}
-                >
-                  {type.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.typeDescription,
-                    selectedType === type.key && styles.selectedDescription,
-                  ]}
-                >
-                  {type.description}
-                </Text>
+                <Text style={styles.modalCloseText}>Close</Text>
               </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.amountIntro}>
-            <Text style={styles.sectionLabel}>HOW MUCH?</Text>
-            <Text style={styles.amountHint}>Start with the number. You can add context below.</Text>
-          </View>
-          <AmountInput value={amount} onChangeText={setAmount} style={styles.amountInput} />
-          <Text style={styles.sectionLabel}>WHERE?</Text>
-          <SelectField
-            label={selectedType === "TRANSFER" ? "Source account" : "Account"}
-            selectedId={accountId}
-            options={accountOptions()}
-            onSelect={selectSourceAccount}
-          />
-          {selectedType === "TRANSFER" ? (
-            <SelectField
-              label="Destination account"
-              selectedId={destinationAccountId}
-              options={accountOptions(accountId)}
-              onSelect={setDestinationAccountId}
-            />
-          ) : null}
-          <Text style={styles.sectionLabel}>WHEN AND WHY?</Text>
-          <TextInput
-            label="Transaction date"
-            value={transactionDate}
-            onChangeText={setTransactionDate}
-            placeholder="YYYY-MM-DD"
-          />
-          {selectedType !== "TRANSFER" ? (
-            <TextInput
-              label="Category (optional)"
-              value={category}
-              onChangeText={setCategory}
-              placeholder="Example: Groceries"
-            />
-          ) : null}
-          <TextInput
-            label="Note (optional)"
-            value={note}
-            onChangeText={setNote}
-            placeholder="Add a note"
-            multiline
-          />
-
-          {selectedType === "INCOME" ? (
-            <View style={styles.periodSection}>
-              <Text style={styles.sectionLabel}>BUDGET PERIOD</Text>
-              <View style={styles.periodToggle}>
-                <View style={styles.periodCopy}>
-                  <Text style={styles.periodTitle}>
-                    Start a new budget period
-                  </Text>
-                  <Text style={styles.periodHint}>
-                    Enable this only when this income starts a new period.
-                  </Text>
-                </View>
-                <Switch
-                  value={startNewPeriod}
-                  onValueChange={setStartNewPeriod}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={colors.surface}
-                />
-              </View>
             </View>
-          ) : null}
-          {startNewPeriod ? (
-            <>
-              <TextInput
-                label="Savings percentage"
-                value={savingPercentage}
-                onChangeText={setSavingPercentage}
-                keyboardType="decimal-pad"
-                placeholder="20"
-              />
-              <TextInput
-                label="Period end date"
-                value={periodEndDate}
-                onChangeText={setPeriodEndDate}
-                placeholder="YYYY-MM-DD"
-              />
-            </>
-          ) : null}
-          <Button
-            label="Save transaction"
-            onPress={() => void submit()}
-            loading={submitting}
-          />
-        </>
-      )}
-    </ScrollView>
+            <TextInput
+              autoFocus
+              editable={!generatingDraft}
+              error={smartInputError ?? undefined}
+              label="Describe your transaction"
+              multiline
+              onChangeText={(value) => {
+                setSmartInputText(value);
+                if (smartInputError) setSmartInputError(null);
+              }}
+              placeholder="Example: hari ini makan 50 ribu pakai BCA"
+              style={styles.smartInputField}
+              textAlignVertical="top"
+              value={smartInputText}
+            />
+            <Text style={styles.smartInputHint}>
+              Nothing is saved automatically. You will review the regular form
+              first.
+            </Text>
+            <Button
+              label="Generate draft"
+              loading={generatingDraft}
+              onPress={() => void generateDraft()}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
+}
+
+function draftFieldLabel(field: string) {
+  switch (field) {
+    case "transactionType":
+      return "transaction type";
+    case "transactionDate":
+      return "transaction date";
+    case "accountId":
+      return "account";
+    case "destinationAccountId":
+      return "destination account";
+    default:
+      return field;
+  }
+}
+
+function currentLocalDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function createStyles(colors: ThemeColors) {
@@ -389,7 +607,29 @@ function createStyles(colors: ThemeColors) {
     content: { padding: 20, gap: 20, paddingBottom: 40 },
     title: { color: colors.textPrimary, fontSize: 26, fontWeight: "700" },
     subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
-    typeSelector: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 0 },
+    draftNotice: {
+      backgroundColor: colors.primarySurface,
+      borderColor: colors.primary,
+      borderWidth: 1,
+      gap: 4,
+      padding: 14,
+    },
+    draftNoticeTitle: {
+      color: colors.textPrimary,
+      fontSize: 15,
+      fontWeight: "700",
+    },
+    draftNoticeText: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    typeSelector: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: 0,
+    },
     typeOption: {
       backgroundColor: colors.background,
       borderBottomColor: colors.border,
@@ -418,7 +658,12 @@ function createStyles(colors: ThemeColors) {
     },
     amountIntro: { gap: 4, marginTop: 4 },
     amountHint: { color: colors.textSecondary, fontSize: 13 },
-    amountInput: { fontSize: 30, fontWeight: "800", minHeight: 72, paddingVertical: 12 },
+    amountInput: {
+      fontSize: 30,
+      fontWeight: "800",
+      minHeight: 72,
+      paddingVertical: 12,
+    },
     field: { gap: 8 },
     fieldLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: "600" },
     accountOptions: { gap: 0 },
@@ -450,5 +695,46 @@ function createStyles(colors: ThemeColors) {
     periodCopy: { flex: 1, gap: 4 },
     periodTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },
     periodHint: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+    modalBackdrop: {
+      backgroundColor: colors.scrim,
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    smartInputSheet: {
+      backgroundColor: colors.background,
+      maxHeight: "90%",
+    },
+    smartInputSheetContent: {
+      gap: 16,
+      padding: 20,
+    },
+    modalHeader: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: 16,
+      justifyContent: "space-between",
+    },
+    modalTitleGroup: { flex: 1, gap: 6 },
+    modalTitle: { color: colors.textPrimary, fontSize: 21, fontWeight: "800" },
+    modalDescription: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    modalClose: {
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 44,
+      minWidth: 44,
+    },
+    modalCloseText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+    smartInputField: { minHeight: 112, paddingTop: 14 },
+    smartInputHint: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    pressed: { opacity: 0.7 },
+    disabled: { opacity: 0.5 },
   });
 }

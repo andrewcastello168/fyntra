@@ -62,6 +62,22 @@ export type Dashboard = {
 export type AccountsResponse = { data: Account[] };
 export type DashboardResponse = { data: Dashboard };
 export type ActivePeriodResponse = { data: BudgetPeriod | null };
+export type TransactionDraftResponse = {
+  data: {
+    draft: {
+      transactionType: TransactionType | null;
+      amount: number | null;
+      transactionDate: string | null;
+      accountId: number | null;
+      destinationAccountId?: number | null;
+      category: string | null;
+      note: string | null;
+    };
+    missingFields: string[];
+    warnings: string[];
+    accountResolution: "exact" | "ambiguous" | "unmatched";
+  };
+};
 export type TransactionsResponse = {
   data: Transaction[];
   pagination: {
