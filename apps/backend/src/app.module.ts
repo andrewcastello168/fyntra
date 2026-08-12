@@ -6,6 +6,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { BudgetPeriodsModule } from './budget-periods/budget-periods.module';
 import { DashboardModule } from './home/dashboard.module';
+import { TransactionDraftsModule } from './transaction-drafts/transaction-drafts.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DashboardModule } from './home/dashboard.module';
     AccountsModule,
     BudgetPeriodsModule,
     DashboardModule,
+    TransactionDraftsModule,
   ],
 })
 export class AppModule {}
