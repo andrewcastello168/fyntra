@@ -148,20 +148,10 @@ export default function AccountsScreen() {
 
   return (
     <>
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: 40 + insets.bottom },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void loadAccounts(true)}
-          />
-        }
-      >
-        <View style={styles.header}>
+      <View style={styles.screen}>
+        <View
+          style={[styles.header, { paddingTop: insets.top + 12 }]}
+        >
           <View style={styles.headerCopy}>
             <Text style={styles.title}>Accounts</Text>
             <Text style={styles.subtitle}>
@@ -177,6 +167,19 @@ export default function AccountsScreen() {
             <Text style={styles.addLabel}>+</Text>
           </Pressable>
         </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: 40 + insets.bottom },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void loadAccounts(true)}
+            />
+          }
+        >
         {error ? <ErrorState message={error} /> : null}
         <View style={styles.totalBalance}>
           <View style={styles.totalCopy}><Text style={styles.totalLabel}>TOTAL BALANCE</Text><Text style={styles.totalValue}>{isBalanceVisible ? formatCurrency(totalBalance) : maskBalance()}</Text></View>
@@ -214,7 +217,8 @@ export default function AccountsScreen() {
             message="Add your first account to start tracking your finances."
           />
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <Modal
         visible={showCreate}
@@ -292,8 +296,9 @@ function accountTypeLabel(type: string) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20, gap: 18, paddingBottom: 40 },
-    header: { alignItems: "center", flexDirection: "row", gap: 12 },
+    scroll: { flex: 1, backgroundColor: colors.background },
+    content: { paddingBottom: 40, paddingHorizontal: 20, paddingTop: 9, gap: 18 },
+    header: { alignItems: "center", backgroundColor: colors.background, flexDirection: "row", gap: 12, paddingBottom: 9, paddingHorizontal: 20 },
     headerCopy: { flex: 1, gap: 4 },
     title: { color: colors.textPrimary, fontSize: 26, fontWeight: "700" },
     subtitle: { color: colors.textSecondary, fontSize: 14 },

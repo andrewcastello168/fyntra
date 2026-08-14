@@ -1,11 +1,11 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import * as LocalAuthentication from "expo-local-authentication";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/AuthProvider";
-import { disableBiometricLogin, getStoredAccessToken, hasBiometricCredential, setBiometricCredential } from "@/src/api/client";
+import { getStoredRefreshToken } from "@/src/api/client";
+import { disableBiometricLogin, enableBiometricLogin, hasBiometricLogin, isBiometricAuthenticationSupported } from "@/src/auth/biometric";
 import { useBalanceVisibility } from "@/src/privacy/BalanceVisibilityProvider";
 import { ThemeColors, useTheme } from "@/src/theme";
 import { errorMessage } from "@/src/utils/format";
@@ -29,50 +29,54 @@ export default function ProfileScreen() {
     setError(null);
     try {
       await refreshUser();
-      setBiometricEnabled(await hasBiometricCredential());
+      setBiometricEnabled(await hasBiometricLogin(user?.id));
     } catch (e) { setError(errorMessage(e, "The profile could not be loaded.")); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [refreshUser]);
+  }, [refreshUser, user?.id]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   async function toggleBiometric(value: boolean) {
     setBiometricBusy(true);
     try {
       if (!value) { await disableBiometricLogin(); setBiometricEnabled(false); return; }
-      if (!(await LocalAuthentication.hasHardwareAsync()) || !(await LocalAuthentication.isEnrolledAsync())) {
+      if (!(await isBiometricAuthenticationSupported())) {
         Alert.alert("Biometric login unavailable", "Enroll Face ID or a fingerprint on this device first.");
         return;
       }
-      const token = await getStoredAccessToken();
-      if (!token || !(await setBiometricCredential(token))) throw new Error("Biometric login could not be enabled.");
+      const refreshToken = await getStoredRefreshToken();
+      if (!user || !refreshToken || !(await enableBiometricLogin({ refreshToken, userId: user.id }))) throw new Error("Biometric login could not be enabled.");
       setBiometricEnabled(true);
     } catch (e) { Alert.alert("Biometric login", errorMessage(e, "Biometric login could not be enabled.")); }
     finally { setBiometricBusy(false); }
   }
 
   if (loading && !user) return <LoadingState label="Loading settings..." />;
-  return <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: 36 + insets.bottom }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}>
-    <Text style={styles.title}>Settings</Text>
-    <Text style={styles.subtitle}>Make the app feel right for you.</Text>
-    {error ? <ErrorState message={error} /> : null}
-    <SettingsSection label="PROFILE">
-      <SettingsRow icon="person-outline" title={user?.profile?.full_name || "Your profile"} detail={user?.email ?? ""} />
-    </SettingsSection>
-    <SettingsSection label="PREFERENCES">
-      <SettingsRow icon="color-palette-outline" title="Appearance" detail={mode[0].toUpperCase() + mode.slice(1)} onPress={() => router.push("/appearance" as never)} />
-      <SettingsRow icon="cash-outline" title="Currency" detail="IDR" />
-      <SettingsRow icon="calendar-outline" title="Start of budget period" detail="Manage in a new income" />
-    </SettingsSection>
-    <SettingsSection label="PRIVACY & SECURITY">
-      <SettingsRow icon="finger-print-outline" title="Biometric login" detail={biometricEnabled ? "Enabled" : "Disabled"} trailing={<Switch value={biometricEnabled} disabled={biometricBusy} onValueChange={(v) => void toggleBiometric(v)} trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.surface} />} />
-      <SettingsRow icon="eye-off-outline" title="Hide balances by default" detail="Mask financial amounts on launch" trailing={<Switch value={hideBalancesByDefault} onValueChange={(v) => void setHideBalancesByDefault(v)} trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.surface} />} />
-      <SettingsRow icon={isBalanceVisible ? "eye-off-outline" : "eye-outline"} title={isBalanceVisible ? "Lock balances" : "Balances are hidden"} detail={isBalanceVisible ? "Hide them for this secure session" : "Tap an eye to unlock"} onPress={lockBalances} />
-    </SettingsSection>
-    <SettingsSection label="ACCOUNT">
-      <SettingsRow icon="wallet-outline" title="Manage accounts" detail="View and organize your accounts" onPress={() => router.push("/(app)/(tabs)/accounts" as never)} />
-      <SettingsRow icon="log-out-outline" title="Sign out" detail="End this session on this device" danger onPress={() => void logout()} />
-    </SettingsSection>
-  </ScrollView>;
+  return <View style={styles.screen}>
+    <View style={[styles.fixedHeader, { paddingTop: insets.top + 16 }]}>
+      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.subtitle}>Make the app feel right for you.</Text>
+    </View>
+    <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: 36 + insets.bottom }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}>
+      {error ? <ErrorState message={error} /> : null}
+      <SettingsSection label="PROFILE">
+        <SettingsRow icon="person-outline" title={user?.profile?.full_name || "Your profile"} detail={user?.email ?? ""} />
+      </SettingsSection>
+      <SettingsSection label="PREFERENCES">
+        <SettingsRow icon="color-palette-outline" title="Appearance" detail={mode[0].toUpperCase() + mode.slice(1)} onPress={() => router.push("/appearance" as never)} />
+        <SettingsRow icon="cash-outline" title="Currency" detail="IDR" />
+        <SettingsRow icon="calendar-outline" title="Start of budget period" detail="Manage in a new income" />
+      </SettingsSection>
+      <SettingsSection label="PRIVACY & SECURITY">
+        <SettingsRow icon="finger-print-outline" title="Biometric login" detail={biometricEnabled ? "Enabled" : "Disabled"} trailing={<Switch value={biometricEnabled} disabled={biometricBusy} onValueChange={(v) => void toggleBiometric(v)} trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.surface} />} />
+        <SettingsRow icon="eye-off-outline" title="Hide balances by default" detail="Mask financial amounts on launch" trailing={<Switch value={hideBalancesByDefault} onValueChange={(v) => void setHideBalancesByDefault(v)} trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.surface} />} />
+        <SettingsRow icon={isBalanceVisible ? "eye-off-outline" : "eye-outline"} title={isBalanceVisible ? "Lock balances" : "Balances are hidden"} detail={isBalanceVisible ? "Hide them for this secure session" : "Tap an eye to unlock"} onPress={lockBalances} />
+      </SettingsSection>
+      <SettingsSection label="ACCOUNT">
+        <SettingsRow icon="wallet-outline" title="Manage accounts" detail="View and organize your accounts" onPress={() => router.push("/(app)/(tabs)/accounts" as never)} />
+        <SettingsRow icon="log-out-outline" title="Sign out" detail="End this session on this device" danger onPress={() => void logout()} />
+      </SettingsSection>
+    </ScrollView>
+  </View>;
 }
 
 function SettingsSection({ label, children }: { label: string; children: React.ReactNode }) { const { colors } = useTheme(); return <View style={{ gap: 4 }}><Text style={[sectionStyles.label, { color: colors.textSecondary }]}>{label}</Text><View>{children}</View></View>; }
@@ -82,4 +86,4 @@ function SettingsRow({ icon, title, detail, onPress, trailing, danger = false }:
 }
 const sectionStyles = StyleSheet.create({ label: { fontSize: 12, fontWeight: "800", letterSpacing: 1, marginBottom: 4 } });
 const rowStyles = StyleSheet.create({ row: { alignItems: "center", borderBottomWidth: 1, flexDirection: "row", gap: 14, minHeight: 68, paddingVertical: 10 } });
-function createStyles(colors: ThemeColors) { return StyleSheet.create({ screen: { flex: 1, backgroundColor: colors.background }, content: { gap: 26, paddingHorizontal: 20 }, title: { color: colors.textPrimary, fontSize: 28, fontWeight: "800" }, subtitle: { color: colors.textSecondary, fontSize: 15, marginTop: -18 } }); }
+function createStyles(colors: ThemeColors) { return StyleSheet.create({ screen: { flex: 1, backgroundColor: colors.background }, scroll: { flex: 1, backgroundColor: colors.background }, fixedHeader: { backgroundColor: colors.background, gap: 8, paddingBottom: 13, paddingHorizontal: 20 }, content: { gap: 26, paddingHorizontal: 20, paddingTop: 13 }, title: { color: colors.textPrimary, fontSize: 28, fontWeight: "800" }, subtitle: { color: colors.textSecondary, fontSize: 15 } }); }

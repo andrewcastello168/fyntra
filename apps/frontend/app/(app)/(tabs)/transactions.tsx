@@ -200,48 +200,53 @@ export default function TransactionsScreen() {
 
   return (
     <>
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: 40 + insets.bottom },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void loadTransactions(true)}
-          />
-        }
-      >
-        <Text style={styles.title}>Transactions</Text>
-        <Text style={styles.subtitle}>
-          Income, expense, and transfer history.
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
+      <View style={styles.screen}>
+        <View
+          style={[styles.fixedHeader, { paddingTop: insets.top + 12 }]}
         >
-          {filters.map((item) => (
-            <Pressable
-              key={item.key}
-              onPress={() => changeFilter(item.key)}
-              style={[
-                styles.filterChip,
-                filter === item.key && styles.selectedFilter,
-              ]}
-            >
-              <Text
+          <Text style={styles.title}>Transactions</Text>
+          <Text style={styles.subtitle}>
+            Income, expense, and transfer history.
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            {filters.map((item) => (
+              <Pressable
+                key={item.key}
+                onPress={() => changeFilter(item.key)}
                 style={[
-                  styles.filterText,
-                  filter === item.key && styles.selectedFilterText,
+                  styles.filterChip,
+                  filter === item.key && styles.selectedFilter,
                 ]}
               >
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+                <Text
+                  style={[
+                    styles.filterText,
+                    filter === item.key && styles.selectedFilterText,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: 40 + insets.bottom },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void loadTransactions(true)}
+            />
+          }
+        >
         {error ? <ErrorState message={error} /> : null}
         {loading && allTransactions.length ? <Text style={styles.refreshHint}>Refreshing list…</Text> : null}
         {transactions.length ? (
@@ -317,7 +322,8 @@ export default function TransactionsScreen() {
             message="Income, expenses, and transfers will appear here."
           />
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <Modal
         visible={Boolean(selected)}
@@ -377,7 +383,19 @@ export default function TransactionsScreen() {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    content: { gap: 16, padding: 20, paddingBottom: 40 },
+    scroll: { flex: 1, backgroundColor: colors.background },
+    fixedHeader: {
+      backgroundColor: colors.background,
+      gap: 16,
+      paddingBottom: 8,
+      paddingHorizontal: 20,
+    },
+    content: {
+      gap: 16,
+      paddingBottom: 40,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+    },
     title: { color: colors.textPrimary, fontSize: 26, fontWeight: "700" },
     subtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
     filterRow: { gap: 8, paddingVertical: 4 },

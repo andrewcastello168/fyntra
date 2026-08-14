@@ -6,13 +6,24 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Alert, Platform } from "react-native";
 
 import {
+  ApiError,
   apiFetch,
-  clearSession,
+  clearActiveSession,
   getStoredAccessToken,
+  getStoredRefreshToken,
   saveSession,
 } from "@/src/api/client";
+import {
+  disableBiometricLogin,
+  enableBiometricLogin,
+  getBiometricSession,
+  hasBiometricLogin,
+  isBiometricAuthenticationSupported,
+  updateBiometricSession,
+} from "@/src/auth/biometric";
 
 export type User = {
   id: string;
@@ -48,9 +59,9 @@ type AuthContextValue = {
   clearError: () => void;
 
   login: (email: string, password: string) => Promise<void>;
+  loginWithBiometrics: () => Promise<void>;
   register: (data: RegisterData) => Promise<boolean>;
   refreshUser: () => Promise<void>;
-  restoreWithAccessToken: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -70,14 +81,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    const result = await apiFetch<MeResponse>("/auth/me", {}, token);
+    try {
+      const result = await apiFetch<MeResponse>("/auth/me", {}, token);
+      setUser(result.user);
+    } catch (error) {
+      const refreshToken = await getStoredRefreshToken();
+      const requiresBiometrics = await hasBiometricLogin();
 
-    setUser(result.user);
-  };
+      if (
+        !(error instanceof ApiError) ||
+        error.status !== 401 ||
+        !refreshToken ||
+        requiresBiometrics
+      ) {
+        throw error;
+      }
 
-  const restoreWithAccessToken = async (accessToken: string) => {
-    const result = await apiFetch<MeResponse>("/auth/me", {}, accessToken);
-    setUser(result.user);
+      const result = await refreshSession(refreshToken);
+      setUser(result.user);
+    }
   };
 
   const login = async (email: string, password: string) => {
@@ -95,11 +117,72 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       await saveSession(result.accessToken, result.refreshToken);
 
+      try {
+        const supportsBiometrics = await isBiometricAuthenticationSupported();
+        const belongsToCurrentUser = await hasBiometricLogin(result.user.id);
+        const belongsToAnotherUser =
+          !belongsToCurrentUser && (await hasBiometricLogin());
+
+        if (belongsToAnotherUser) await disableBiometricLogin();
+
+        if (supportsBiometrics && !belongsToCurrentUser) {
+          const shouldEnable = await confirmBiometricEnrollment();
+
+          if (shouldEnable) {
+            const enabled = await enableBiometricLogin({
+              refreshToken: result.refreshToken,
+              userId: result.user.id,
+            });
+
+            if (!enabled) {
+              Alert.alert(
+                "Biometric login not enabled",
+                "You can continue using Personal Tracker and enable it later in Settings.",
+              );
+            }
+          }
+        }
+      } catch {
+        // Biometric enrollment must never prevent a successful password login.
+      }
+
       setUser(result.user);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Login gagal.";
 
       setError(message);
+      throw error;
+    }
+  };
+
+  const loginWithBiometrics = async () => {
+    setError(null);
+    const biometricSession = await getBiometricSession();
+
+    if (!biometricSession) {
+      throw new Error(
+        "Biometric login is no longer available. Sign in with your password.",
+      );
+    }
+
+    try {
+      const result = await refreshSession(biometricSession.refreshToken);
+
+      try {
+        await updateBiometricSession({
+          refreshToken: result.refreshToken,
+          userId: result.user.id,
+        });
+      } catch {
+        await disableBiometricLogin().catch(() => undefined);
+      }
+
+      setUser(result.user);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await disableBiometricLogin().catch(() => undefined);
+        await clearActiveSession().catch(() => undefined);
+      }
       throw error;
     }
   };
@@ -155,7 +238,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } catch {
       // A missing or expired remote session is already logged out remotely.
     } finally {
-      await clearSession().catch(() => undefined);
+      await Promise.all([
+        clearActiveSession().catch(() => undefined),
+        disableBiometricLogin().catch(() => undefined),
+      ]);
       setUser(null);
       setError(null);
     }
@@ -166,7 +252,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         await refreshUser();
       } catch {
-        await clearSession();
+        await clearActiveSession();
         setUser(null);
       } finally {
         setLoading(false);
@@ -183,15 +269,51 @@ export function AuthProvider({ children }: PropsWithChildren) {
       error,
       clearError,
       login,
+      loginWithBiometrics,
       register,
       refreshUser,
-      restoreWithAccessToken,
       logout,
     }),
     [user, isLoading, error],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+async function refreshSession(refreshToken: string) {
+  const result = await apiFetch<AuthResponse>("/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({
+      refreshToken,
+      type: process.env.EXPO_PUBLIC_APP_ENV ?? "sim",
+    }),
+  });
+
+  await saveSession(result.accessToken, result.refreshToken);
+  return result;
+}
+
+function confirmBiometricEnrollment() {
+  if (Platform.OS === "web") return Promise.resolve(false);
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    Alert.alert(
+      "Enable biometric login on this device?",
+      "Use Face ID, Touch ID, or your device fingerprint next time. Your password and biometric data are never stored by Personal Tracker.",
+      [
+        { text: "Not now", style: "cancel", onPress: () => finish(false) },
+        { text: "Enable", onPress: () => finish(true) },
+      ],
+      { cancelable: true, onDismiss: () => finish(false) },
+    );
+  });
 }
 
 export function useAuth() {

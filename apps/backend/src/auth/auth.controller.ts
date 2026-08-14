@@ -10,7 +10,8 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { SupabaseMode } from 'src/supabase/supabase.config';
+import { RefreshSessionDto } from './dto/refresh-session.dto';
+import { SupabaseMode } from '../supabase/supabase.config';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 
 @Controller('auth')
@@ -27,6 +28,12 @@ export class AuthController {
   login(@Body() loginDto: LoginDto) {
     const envService = process.env.APP_ENV as SupabaseMode;
     return this.authService.login(loginDto, envService);
+  }
+
+  @Post('refresh')
+  refresh(@Body() refreshSessionDto: RefreshSessionDto) {
+    const envService = process.env.APP_ENV as SupabaseMode;
+    return this.authService.refreshSession(refreshSessionDto, envService);
   }
 
   @UseGuards(SupabaseAuthGuard)

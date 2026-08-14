@@ -46,12 +46,26 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => { void loadDashboard(); }, [loadDashboard]));
 
+  const pageHeader = (
+    <View style={[styles.fixedHeader, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>PERSONAL FINANCE</Text>
+          <Text style={styles.title}>Your money, at a glance</Text>
+        </View>
+      </View>
+    </View>
+  );
+
   if (loading && !dashboard) return <LoadingState label="Loading summary..." />;
   if (error && !dashboard) {
     return (
-      <ScrollView style={styles.screen} contentContainerStyle={[styles.errorContent, { paddingTop: insets.top + 12 }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDashboard(true)} />}>
-        <ErrorState message={error} />
-      </ScrollView>
+      <View style={styles.screen}>
+        {pageHeader}
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.errorContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDashboard(true)} />}>
+          <ErrorState message={error} />
+        </ScrollView>
+      </View>
     );
   }
   if (!dashboard) return null;
@@ -66,14 +80,10 @@ export default function HomeScreen() {
   const onTrack = remaining >= expectedRemaining;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: 36 + insets.bottom }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDashboard(true)} />}>
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>PERSONAL FINANCE</Text>
-          <Text style={styles.title}>Your money, at a glance</Text>
-        </View>
-      </View>
-      {error ? <ErrorState message={error} /> : null}
+    <View style={styles.screen}>
+      {pageHeader}
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: 36 + insets.bottom }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDashboard(true)} />}>
+        {error ? <ErrorState message={error} /> : null}
 
       <View style={styles.balanceBlock}>
         <Text style={styles.metricLabel}>Current balance</Text>
@@ -112,7 +122,8 @@ export default function HomeScreen() {
         <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>Recent activity</Text><Text style={styles.sectionMeta}>Latest 5</Text></View>
         {dashboard.bottom.length ? <View>{dashboard.bottom.map((transaction) => <View key={transaction.id} style={styles.transactionRow}><View style={styles.transactionCopy}><Text style={styles.transactionTitle}>{transaction.category || transactionLabel(transaction.transactionType)}</Text><Text style={styles.transactionMeta}>{transaction.accountName}{transaction.destinationAccountName ? ` → ${transaction.destinationAccountName}` : ""} · {formatDate(transaction.transactionDate)}</Text></View><Text style={[styles.transactionAmount, { color: transactionColor(transaction.transactionType, colors) }]}>{transaction.transactionType === "EXPENSE" ? "-" : "+"}{money(transaction.amount)}</Text></View>)}</View> : <EmptyState title="No transactions yet" message="Recent transactions will appear here." />}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -128,6 +139,6 @@ function ContextValue({ label, value, styles, align = "left" }: { label: string;
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background }, content: { gap: 28, padding: 20 }, errorContent: { flexGrow: 1, justifyContent: "center", padding: 24 }, header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }, headerCopy: { flex: 1 }, eyebrow: { color: colors.primary, fontSize: 11, fontWeight: "800", letterSpacing: 1.4, marginBottom: 8 }, title: { color: colors.textPrimary, fontSize: 25, fontWeight: "800", letterSpacing: -0.4 }, balanceBlock: { borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: 20, paddingTop: 4 }, balanceLine: { alignItems: "center", flexDirection: "row", gap: 6 }, metricLabel: { color: colors.textSecondary, fontSize: 13 }, balance: { color: colors.textPrimary, flexShrink: 1, fontSize: 36, fontWeight: "800", letterSpacing: -1, marginTop: 5 }, balanceHint: { color: colors.textSecondary, fontSize: 13, marginTop: 5 }, section: { gap: 14 }, sectionHeading: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", gap: 12 }, sectionTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" }, sectionMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 4 }, status: { fontSize: 12, fontWeight: "800" }, budgetPanel: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, gap: 18, padding: 18 }, budgetHeadline: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between" }, budgetTotal: { color: colors.textPrimary, fontSize: 28, fontWeight: "800", marginTop: 4 }, percentBlock: { alignItems: "flex-end" }, percent: { color: colors.primary, fontSize: 26, fontWeight: "800" }, progressTrack: { backgroundColor: colors.border, height: 14 }, progressFill: { height: 14 }, valueGrid: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 16 }, alignRight: { alignItems: "flex-end" }, budgetValue: { color: colors.textPrimary, fontSize: 16, fontWeight: "800", marginTop: 4 }, contextRow: { flexDirection: "row", justifyContent: "space-between" }, contextLabel: { color: colors.textSecondary, fontSize: 12 }, contextValue: { color: colors.primary, fontSize: 16, fontWeight: "800", marginTop: 4 }, transactionRow: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 12, paddingVertical: 14 }, transactionCopy: { flex: 1, gap: 4 }, transactionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" }, transactionMeta: { color: colors.textSecondary, fontSize: 12 }, transactionAmount: { fontSize: 13, fontWeight: "800", textAlign: "right" },
+    screen: { flex: 1, backgroundColor: colors.background }, scroll: { flex: 1, backgroundColor: colors.background }, fixedHeader: { backgroundColor: colors.background, paddingBottom: 14, paddingHorizontal: 20 }, content: { gap: 28, paddingBottom: 20, paddingHorizontal: 20, paddingTop: 14 }, errorContent: { flexGrow: 1, justifyContent: "center", padding: 24 }, header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }, headerCopy: { flex: 1 }, eyebrow: { color: colors.primary, fontSize: 11, fontWeight: "800", letterSpacing: 1.4, marginBottom: 8 }, title: { color: colors.textPrimary, fontSize: 25, fontWeight: "800", letterSpacing: -0.4 }, balanceBlock: { borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: 20, paddingTop: 4 }, balanceLine: { alignItems: "center", flexDirection: "row", gap: 6 }, metricLabel: { color: colors.textSecondary, fontSize: 13 }, balance: { color: colors.textPrimary, flexShrink: 1, fontSize: 36, fontWeight: "800", letterSpacing: -1, marginTop: 5 }, balanceHint: { color: colors.textSecondary, fontSize: 13, marginTop: 5 }, section: { gap: 14 }, sectionHeading: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", gap: 12 }, sectionTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" }, sectionMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 4 }, status: { fontSize: 12, fontWeight: "800" }, budgetPanel: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, gap: 18, padding: 18 }, budgetHeadline: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between" }, budgetTotal: { color: colors.textPrimary, fontSize: 28, fontWeight: "800", marginTop: 4 }, percentBlock: { alignItems: "flex-end" }, percent: { color: colors.primary, fontSize: 26, fontWeight: "800" }, progressTrack: { backgroundColor: colors.border, height: 14 }, progressFill: { height: 14 }, valueGrid: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 16 }, alignRight: { alignItems: "flex-end" }, budgetValue: { color: colors.textPrimary, fontSize: 16, fontWeight: "800", marginTop: 4 }, contextRow: { flexDirection: "row", justifyContent: "space-between" }, contextLabel: { color: colors.textSecondary, fontSize: 12 }, contextValue: { color: colors.primary, fontSize: 16, fontWeight: "800", marginTop: 4 }, transactionRow: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 12, paddingVertical: 14 }, transactionCopy: { flex: 1, gap: 4 }, transactionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" }, transactionMeta: { color: colors.textSecondary, fontSize: 12 }, transactionAmount: { fontSize: 13, fontWeight: "800", textAlign: "right" },
   });
 }

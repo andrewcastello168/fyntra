@@ -335,11 +335,17 @@ export default function CreateScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={insets.top}
     >
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.title}>Create transaction</Text>
+        <Text style={styles.subtitle}>
+          Choose a transaction type and enter its details.
+        </Text>
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: 40 + insets.bottom },
+          { paddingBottom: 40 + insets.bottom },
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -350,10 +356,6 @@ export default function CreateScreen() {
           />
         }
       >
-        <Text style={styles.title}>Create transaction</Text>
-        <Text style={styles.subtitle}>
-          Choose a transaction type and enter its details.
-        </Text>
         {error ? <ErrorState message={error} /> : null}
         {!accounts.length ? (
           <EmptyState
@@ -604,7 +606,8 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
     scroll: { backgroundColor: colors.background, flex: 1 },
-    content: { padding: 20, gap: 20, paddingBottom: 40 },
+    fixedHeader: { backgroundColor: colors.background, gap: 20, paddingBottom: 10, paddingHorizontal: 20 },
+    content: { paddingBottom: 40, paddingHorizontal: 20, paddingTop: 10, gap: 20 },
     title: { color: colors.textPrimary, fontSize: 26, fontWeight: "700" },
     subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
     draftNotice: {

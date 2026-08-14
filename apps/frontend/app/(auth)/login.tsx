@@ -9,18 +9,17 @@ import {
   Text,
   View,
 } from "react-native";
-import * as LocalAuthentication from "expo-local-authentication";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/src/components/Button";
 import { ErrorState } from "@/src/components/ErrorState";
 import { TextInput } from "@/src/components/TextInput";
 import { useAuth } from "@/src/auth/AuthProvider";
-import { getBiometricAccessToken, hasBiometricCredential } from "@/src/api/client";
+import { hasBiometricLogin } from "@/src/auth/biometric";
 import { ThemeColors, useTheme } from "@/src/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
-  const { login, error, clearError, restoreWithAccessToken } = useAuth();
+  const { login, loginWithBiometrics, error, clearError } = useAuth();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -35,12 +34,8 @@ export default function LoginScreen() {
     let mounted = true;
     async function checkBiometrics() {
       if (Platform.OS === "web") return;
-      const [hardware, enrolled, credential] = await Promise.all([
-        LocalAuthentication.hasHardwareAsync(),
-        LocalAuthentication.isEnrolledAsync(),
-        hasBiometricCredential(),
-      ]);
-      if (mounted) setBiometricAvailable(hardware && enrolled && credential);
+      const available = await hasBiometricLogin();
+      if (mounted) setBiometricAvailable(available);
     }
     void checkBiometrics();
     return () => { mounted = false; };
@@ -73,12 +68,10 @@ export default function LoginScreen() {
     setLocalError("");
     clearError();
     try {
-      const accessToken = await getBiometricAccessToken();
-      if (!accessToken) throw new Error("Biometric session is unavailable.");
-      await restoreWithAccessToken(accessToken);
-      setBiometricAvailable(false);
+      await loginWithBiometrics();
     } catch {
       setLocalError("Biometric sign-in is unavailable. Use your password instead.");
+      setBiometricAvailable(await hasBiometricLogin().catch(() => false));
     } finally {
       setBiometricLoading(false);
     }
@@ -129,16 +122,36 @@ export default function LoginScreen() {
           />
           <Button label="Sign in" onPress={submit} loading={loading} />
           {biometricAvailable ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sign in with device biometrics"
-              disabled={biometricLoading}
-              onPress={() => void signInWithBiometrics()}
-              style={({ pressed }) => [styles.biometricButton, pressed && styles.pressed, biometricLoading && styles.disabled]}
-            >
-              <Ionicons name="finger-print-outline" size={22} color={colors.primary} />
-              <Text style={styles.biometricText}>{biometricLoading ? "Checking device…" : "Use fingerprint or face ID"}</Text>
-            </Pressable>
+            <>
+              <View style={styles.divider} accessibilityElementsHidden>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Login with biometrics"
+                accessibilityState={{ disabled: biometricLoading }}
+                disabled={biometricLoading || loading}
+                onPress={() => void signInWithBiometrics()}
+                style={({ pressed }) => [
+                  styles.biometricButton,
+                  pressed && styles.pressed,
+                  (biometricLoading || loading) && styles.disabled,
+                ]}
+              >
+                <Ionicons
+                  name="finger-print-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text style={styles.biometricText}>
+                  {biometricLoading
+                    ? "Checking biometrics…"
+                    : "Login with biometrics"}
+                </Text>
+              </Pressable>
+            </>
           ) : null}
           <Text style={styles.footer}>
             Don&apos;t have an account?{" "}
@@ -175,6 +188,9 @@ function createStyles(colors: ThemeColors) {
     link: { color: colors.primary, fontWeight: "700" },
     biometricButton: { alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "center", minHeight: 48, paddingHorizontal: 12 },
     biometricText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+    divider: { alignItems: "center", flexDirection: "row", gap: 12 },
+    dividerLine: { backgroundColor: colors.border, flex: 1, height: StyleSheet.hairlineWidth },
+    dividerText: { color: colors.textSecondary, fontSize: 14 },
     pressed: { opacity: 0.7 },
     disabled: { opacity: 0.5 },
   });

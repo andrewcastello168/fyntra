@@ -7,8 +7,10 @@ import {
 import { KnexService } from '../database/knex.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { SupabaseService } from 'src/supabase/supabase.service';
-import { SupabaseMode } from 'src/supabase/supabase.config';
+import { RefreshSessionDto } from './dto/refresh-session.dto';
+import { SupabaseService } from '../supabase/supabase.service';
+import { SupabaseMode } from '../supabase/supabase.config';
+import type { Session, User } from '@supabase/supabase-js';
 
 type UserProfileRow = {
   id: string;
@@ -121,24 +123,32 @@ export class AuthService {
       throw new UnauthorizedException('Login gagal');
     }
 
-    const profile = await this.knexService
-      .connection<UserProfileRow, UserProfilePublic>('users')
-      .where({
-        id: authUser.id,
-      })
-      .select('id', 'email', 'username', 'full_name', 'created_at', 'modify_dt')
-      .first();
+    return this.buildSessionResponse(authUser, session, 'Login berhasil');
+  }
 
-    return {
-      message: 'Login berhasil',
-      accessToken: session.access_token,
-      refreshToken: session.refresh_token,
-      user: {
-        id: authUser.id,
-        email: authUser.email,
-        profile: profile ?? null,
-      },
-    };
+  async refreshSession(
+    refreshSessionDto: RefreshSessionDto,
+    envService: SupabaseMode,
+  ) {
+    const supabaseClient = this.supabaseService.getClient(envService);
+    const refreshResponse = await supabaseClient.auth.refreshSession({
+      refresh_token: refreshSessionDto.refreshToken,
+    });
+
+    const authUser = refreshResponse.data.user;
+    const session = refreshResponse.data.session;
+
+    if (refreshResponse.error || !authUser || !session) {
+      throw new UnauthorizedException(
+        'Session is no longer valid. Sign in with your password.',
+      );
+    }
+
+    return this.buildSessionResponse(
+      authUser,
+      session,
+      'Session refreshed successfully',
+    );
   }
 
   async checkUser(accessToken: string, envService: SupabaseMode) {
@@ -188,6 +198,31 @@ export class AuthService {
 
     return {
       message: 'Logout berhasil',
+    };
+  }
+
+  private async buildSessionResponse(
+    authUser: User,
+    session: Session,
+    message: string,
+  ) {
+    const profile = await this.knexService
+      .connection<UserProfileRow, UserProfilePublic>('users')
+      .where({
+        id: authUser.id,
+      })
+      .select('id', 'email', 'username', 'full_name', 'created_at', 'modify_dt')
+      .first();
+
+    return {
+      message,
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+      user: {
+        id: authUser.id,
+        email: authUser.email,
+        profile: profile ?? null,
+      },
     };
   }
 }
