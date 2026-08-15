@@ -17,9 +17,11 @@ type BalanceVisibilityContextValue = {
   setHideBalancesByDefault: (value: boolean) => Promise<void>;
   unlockBalances: () => Promise<boolean>;
   lockBalances: () => void;
+  showBalances: () => void;
 };
 
-const BalanceVisibilityContext = createContext<BalanceVisibilityContextValue | null>(null);
+const BalanceVisibilityContext =
+  createContext<BalanceVisibilityContextValue | null>(null);
 const STORAGE_KEY = "hideBalancesByDefault";
 
 async function readPreference() {
@@ -50,9 +52,12 @@ export function BalanceVisibilityProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
-      if (next !== "active") setBalanceVisible(false);
-    });
+    const subscription = AppState.addEventListener(
+      "change",
+      (next: AppStateStatus) => {
+        if (next !== "active") setBalanceVisible(false);
+      },
+    );
     return () => subscription.remove();
   }, []);
 
@@ -62,13 +67,20 @@ export function BalanceVisibilityProvider({ children }: PropsWithChildren) {
     await writePreference(value);
   }, []);
 
+  const showBalances = useCallback(() => {
+    setBalanceVisible(true);
+  }, []);
+
   const unlockBalances = useCallback(async () => {
     if (isBalanceVisible) return true;
     if (Platform.OS === "web") {
       setBalanceVisible(true);
       return true;
     }
-    if (!(await LocalAuthentication.hasHardwareAsync()) || !(await LocalAuthentication.isEnrolledAsync())) {
+    if (
+      !(await LocalAuthentication.hasHardwareAsync()) ||
+      !(await LocalAuthentication.isEnrolledAsync())
+    ) {
       return false;
     }
     const result = await LocalAuthentication.authenticateAsync({
@@ -86,16 +98,37 @@ export function BalanceVisibilityProvider({ children }: PropsWithChildren) {
   }, []);
 
   const value = useMemo(
-    () => ({ isBalanceVisible, hideBalancesByDefault, setHideBalancesByDefault, unlockBalances, lockBalances }),
-    [isBalanceVisible, hideBalancesByDefault, setHideBalancesByDefault, unlockBalances, lockBalances],
+    () => ({
+      isBalanceVisible,
+      hideBalancesByDefault,
+      setHideBalancesByDefault,
+      unlockBalances,
+      lockBalances,
+      showBalances,
+    }),
+    [
+      isBalanceVisible,
+      hideBalancesByDefault,
+      setHideBalancesByDefault,
+      unlockBalances,
+      lockBalances,
+      showBalances,
+    ],
   );
 
-  return <BalanceVisibilityContext.Provider value={value}>{children}</BalanceVisibilityContext.Provider>;
+  return (
+    <BalanceVisibilityContext.Provider value={value}>
+      {children}
+    </BalanceVisibilityContext.Provider>
+  );
 }
 
 export function useBalanceVisibility() {
   const context = useContext(BalanceVisibilityContext);
-  if (!context) throw new Error("useBalanceVisibility must be used inside BalanceVisibilityProvider");
+  if (!context)
+    throw new Error(
+      "useBalanceVisibility must be used inside BalanceVisibilityProvider",
+    );
   return context;
 }
 

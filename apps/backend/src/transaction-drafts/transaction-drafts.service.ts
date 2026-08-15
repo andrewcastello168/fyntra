@@ -32,6 +32,8 @@ type AccountResolution = 'exact' | 'ambiguous' | 'unmatched';
 type ResolvedAccount = {
   id: number | null;
   status: AccountResolution;
+  requestedName: string | null;
+  candidates: Array<{ id: number; accountName: string }>;
 };
 
 const SYSTEM_PROMPT = `You extract a draft financial transaction from user text.
@@ -42,11 +44,13 @@ transactionType, amount, transactionDate, accountName, destinationAccountName, c
 Rules:
 - transactionType must be INCOME, EXPENSE, TRANSFER, or null.
 - amount must be a positive JSON number or null. Understand Indonesian expressions such as "50 ribu" as 50000 and "1,5 juta" as 1500000.
+- Treat k, rb, and ribu as thousands. Treat jt and juta as millions, with or without a space (for example 35k, 35 rb, 50ribu, 1.5jt, and 1,5 juta).
 - Resolve relative dates such as "hari ini", "kemarin", and "today" from the supplied localDate and timeZone. Return YYYY-MM-DD or null.
 - accountName and destinationAccountName must exactly match one of the supplied active account names, or be null. Never invent an account.
 - destinationAccountName is only used for TRANSFER.
-- category must be a concise English title-case category of at most 100 characters, or null.
-- note contains only useful details not already represented by the other fields, at most 255 characters, or null.
+- Indonesian purchase phrases such as "beli", "pakai", and "pake" normally describe EXPENSE. Salary or "gaji ... masuk" normally describes INCOME.
+- category must be a concise English title-case category of at most 100 characters. Prefer broad useful categories such as "Food & Drink" and "Salary" when the text supports them.
+- note should contain the concise subject or description, such as "Makan" or "Ngopi", when useful. It must be at most 255 characters.
 - Do not create a budget period and do not claim that the transaction was saved.
 - Use null for missing or uncertain values.`;
 
@@ -98,19 +102,20 @@ export class TransactionDraftsService {
       );
     }
 
-    return this.buildResponse(aiDraft, accounts);
+    return this.buildResponse(aiDraft, accounts, parseIndonesianAmount(text));
   }
 
   private buildResponse(
     aiDraft: AiTransactionDraft,
     accounts: ActiveAccount[],
+    parsedAmount: number | null,
   ) {
     const warnings: string[] = [];
     const transactionType = this.readTransactionType(
       aiDraft.transactionType,
       warnings,
     );
-    const amount = this.readAmount(aiDraft.amount, warnings);
+    const amount = parsedAmount ?? this.readAmount(aiDraft.amount, warnings);
     const transactionDate = this.readDate(aiDraft.transactionDate, warnings);
     const category = this.readOptionalString(
       aiDraft.category,
@@ -188,6 +193,8 @@ export class TransactionDraftsService {
           sourceAccount,
           destinationAccount,
         ),
+        requestedAccountName: sourceAccount.requestedName,
+        accountCandidates: sourceAccount.candidates,
       },
     };
   }
@@ -199,7 +206,12 @@ export class TransactionDraftsService {
     warnings: string[],
   ): ResolvedAccount {
     if (typeof value !== 'string' || !value.trim()) {
-      return { id: null, status: 'unmatched' };
+      return {
+        id: null,
+        status: 'unmatched',
+        requestedName: null,
+        candidates: [],
+      };
     }
 
     const requestedName = this.normalizeAccountName(value);
@@ -209,7 +221,12 @@ export class TransactionDraftsService {
     );
 
     if (exactMatches.length === 1) {
-      return { id: Number(exactMatches[0].id), status: 'exact' };
+      return {
+        id: Number(exactMatches[0].id),
+        status: 'exact',
+        requestedName: value.trim(),
+        candidates: this.accountCandidates(exactMatches),
+      };
     }
 
     const partialMatches = accounts.filter((account) => {
@@ -224,18 +241,34 @@ export class TransactionDraftsService {
       warnings.push(
         `The ${fieldLabel} was matched to "${partialMatches[0].account_name}" by name.`,
       );
-      return { id: Number(partialMatches[0].id), status: 'exact' };
+      return {
+        id: Number(partialMatches[0].id),
+        status: 'exact',
+        requestedName: value.trim(),
+        candidates: this.accountCandidates(partialMatches),
+      };
     }
 
     if (exactMatches.length > 1 || partialMatches.length > 1) {
       warnings.push(`The ${fieldLabel} name is ambiguous.`);
-      return { id: null, status: 'ambiguous' };
+      const matches = exactMatches.length ? exactMatches : partialMatches;
+      return {
+        id: null,
+        status: 'ambiguous',
+        requestedName: value.trim(),
+        candidates: this.accountCandidates(matches),
+      };
     }
 
     warnings.push(
       `The ${fieldLabel} could not be matched to an active account.`,
     );
-    return { id: null, status: 'unmatched' };
+    return {
+      id: null,
+      status: 'unmatched',
+      requestedName: value.trim(),
+      candidates: [],
+    };
   }
 
   private combineAccountResolution(
@@ -339,7 +372,29 @@ export class TransactionDraftsService {
       .replace(/\s+/g, ' ');
   }
 
+  private accountCandidates(accounts: ActiveAccount[]) {
+    return accounts.map((account) => ({
+      id: Number(account.id),
+      accountName: account.account_name,
+    }));
+  }
+
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
+}
+
+export function parseIndonesianAmount(text: string): number | null {
+  const match = text.match(
+    /(?:^|\s)(\d+(?:[.,]\d+)?)\s*(k|rb|ribu|jt|juta)\b/i,
+  );
+
+  if (!match) return null;
+
+  const numericValue = Number(match[1].replace(',', '.'));
+  const unit = match[2].toLocaleLowerCase('id-ID');
+  const multiplier = ['jt', 'juta'].includes(unit) ? 1_000_000 : 1_000;
+  const amount = numericValue * multiplier;
+
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
 }

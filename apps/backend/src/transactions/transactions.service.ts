@@ -28,13 +28,14 @@ interface BudgetPeriod {
   status: string;
   created_at: Date;
   updated_at: Date | null;
+  source_transaction_id: number | null;
 }
 
 interface TransactionRow {
   id: number;
   user_id: string;
   account_id: number;
-  budget_period_id: number;
+  budget_period_id: number | null;
   transaction_type: TransactionType;
   destination_account_id: number | null;
   amount: number;
@@ -53,11 +54,12 @@ interface TransactionDetailRow {
   destinationAccountName: string | null;
   accountType: string;
   currentBalance: number | string;
-  budgetPeriodId: number | string;
-  periodStartDate: string;
-  periodEndDate: string;
-  savingPercentage: number | string;
-  periodStatus: string;
+  budgetPeriodId: number | string | null;
+  periodStartDate: string | null;
+  periodEndDate: string | null;
+  savingPercentage: number | string | null;
+  periodStatus: string | null;
+  cycleSourcePeriodId: number | string | null;
   transactionType: TransactionType;
   amount: number | string;
   transactionDate: string;
@@ -94,6 +96,7 @@ type TransactionListRow = {
   note: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+  cycleSourcePeriodId: string | number | null;
 };
 
 @Injectable()
@@ -102,14 +105,6 @@ export class TransactionsService {
 
   private formatDateOnly(dateValue: string): string {
     return dateValue.slice(0, 10);
-  }
-
-  private getPreviousDate(dateValue: string): string {
-    const date = new Date(`${dateValue}T00:00:00Z`);
-
-    date.setUTCDate(date.getUTCDate() - 1);
-
-    return date.toISOString().slice(0, 10);
   }
 
   create(createTransactionDto: CreateTransactionDto, userId: string) {
@@ -122,8 +117,6 @@ export class TransactionsService {
       category,
       note,
       startNewPeriod = false,
-      savingPercentage,
-      periodEndDate: requestedPeriodEndDate,
     } = createTransactionDto;
 
     const transactionAmount = Number(amount);
@@ -154,6 +147,12 @@ export class TransactionsService {
       if (startNewPeriod && transactionType !== TransactionType.INCOME) {
         throw new BadRequestException(
           'Hanya transaksi pemasukan yang dapat memulai periode baru.',
+        );
+      }
+
+      if (startNewPeriod) {
+        throw new BadRequestException(
+          'Save the income first, then start a financial cycle from the saved income.',
         );
       }
 
@@ -207,7 +206,7 @@ export class TransactionsService {
       /**
        * 4. Cari periode budgeting aktif
        */
-      let activePeriod = await trx<BudgetPeriod>('budget_periods')
+      const activePeriod = await trx<BudgetPeriod>('budget_periods')
         .where({
           user_id: userId,
           status: 'ACTIVE',
@@ -216,82 +215,10 @@ export class TransactionsService {
         .first();
 
       /**
-       * 5. Jika income memulai periode baru
+       * Expenses and transfers require an active cycle. An income may be saved
+       * first and assigned when the user explicitly starts a cycle from it.
        */
-      if (startNewPeriod) {
-        if (savingPercentage === undefined) {
-          throw new BadRequestException(
-            'Persentase tabungan wajib diisi saat memulai periode baru.',
-          );
-        }
-
-        const percentage = Number(savingPercentage);
-
-        if (percentage < 0 || percentage > 100) {
-          throw new BadRequestException(
-            'Persentase tabungan harus antara 0 sampai 100.',
-          );
-        }
-
-        const periodStartDate = this.formatDateOnly(transactionDate);
-        const periodEndDate = requestedPeriodEndDate
-          ? this.formatDateOnly(requestedPeriodEndDate)
-          : undefined;
-
-        if (!periodEndDate) {
-          throw new BadRequestException(
-            'Tanggal akhir periode wajib diisi saat memulai periode baru.',
-          );
-        }
-
-        if (periodEndDate < periodStartDate) {
-          throw new BadRequestException(
-            'Tanggal akhir periode tidak boleh sebelum tanggal transaksi.',
-          );
-        }
-
-        if (activePeriod) {
-          if (
-            this.formatDateOnly(activePeriod.start_date) === periodStartDate
-          ) {
-            throw new BadRequestException(
-              'Periode budgeting sudah dimulai pada tanggal tersebut.',
-            );
-          }
-
-          const previousDate = this.getPreviousDate(periodStartDate);
-
-          await trx('budget_periods')
-            .where({
-              id: activePeriod.id,
-              user_id: userId,
-            })
-            .update({
-              end_date: previousDate,
-              status: 'CLOSED',
-              updated_at: trx.fn.now(),
-            });
-        }
-
-        const [newPeriod] = await trx<BudgetPeriod>('budget_periods')
-          .insert({
-            user_id: userId,
-            start_date: periodStartDate,
-            end_date: periodEndDate,
-            saving_percentage: percentage,
-            status: 'ACTIVE',
-            created_at: trx.fn.now(),
-            updated_at: trx.fn.now(),
-          })
-          .returning('*');
-
-        activePeriod = newPeriod;
-      }
-
-      /**
-       * Semua transaksi harus berada di periode aktif.
-       */
-      if (!activePeriod) {
+      if (!activePeriod && transactionType !== TransactionType.INCOME) {
         throw new BadRequestException(
           'Belum ada periode budgeting aktif. Mulai periode baru terlebih dahulu.',
         );
@@ -326,7 +253,7 @@ export class TransactionsService {
               ? destinationAccountId
               : null,
 
-          budget_period_id: activePeriod.id,
+          budget_period_id: activePeriod?.id ?? null,
           transaction_type: transactionType,
           amount: transactionAmount,
           transaction_date: this.formatDateOnly(transactionDate),
@@ -479,13 +406,15 @@ export class TransactionsService {
               }
             : null,
 
-          budgetPeriod: {
-            id: activePeriod.id,
-            startDate: activePeriod.start_date,
-            endDate: activePeriod.end_date,
-            savingPercentage: Number(activePeriod.saving_percentage),
-            status: activePeriod.status,
-          },
+          budgetPeriod: activePeriod
+            ? {
+                id: activePeriod.id,
+                startDate: activePeriod.start_date,
+                endDate: activePeriod.end_date,
+                savingPercentage: Number(activePeriod.saving_percentage),
+                status: activePeriod.status,
+              }
+            : null,
         },
       };
     });
@@ -575,6 +504,13 @@ export class TransactionsService {
           't.user_id',
         );
       })
+      .leftJoin('budget_periods as source_cycle', function () {
+        this.on('source_cycle.source_transaction_id', '=', 't.id').andOn(
+          'source_cycle.user_id',
+          '=',
+          't.user_id',
+        );
+      })
       .select<TransactionListRow[]>({
         id: 't.id',
         accountId: 't.account_id',
@@ -592,6 +528,7 @@ export class TransactionsService {
         note: 't.note',
         createdAt: 't.created_at',
         updatedAt: 't.updated_at',
+        cycleSourcePeriodId: 'source_cycle.id',
       })
       .orderBy('t.transaction_date', 'desc')
       .orderBy('t.id', 'desc')
@@ -618,6 +555,10 @@ export class TransactionsService {
             : Number(transaction.budgetPeriodId),
 
         amount: Number(transaction.amount),
+        cycleSourcePeriodId:
+          transaction.cycleSourcePeriodId === null
+            ? null
+            : Number(transaction.cycleSourcePeriodId),
       })),
       pagination: {
         page,
@@ -653,6 +594,13 @@ export class TransactionsService {
           't.user_id',
         );
       })
+      .leftJoin('budget_periods as source_cycle', function () {
+        this.on('source_cycle.source_transaction_id', '=', 't.id').andOn(
+          'source_cycle.user_id',
+          '=',
+          't.user_id',
+        );
+      })
       .where({
         't.id': id,
         't.user_id': userId,
@@ -677,6 +625,7 @@ export class TransactionsService {
         note: 't.note',
         createdAt: 't.created_at',
         updatedAt: 't.updated_at',
+        cycleSourcePeriodId: 'source_cycle.id',
       })
       .first<TransactionDetailRow>();
 
@@ -686,6 +635,19 @@ export class TransactionsService {
       );
     }
 
+    const activePeriod = await db<BudgetPeriod>('budget_periods')
+      .where({ user_id: userId, status: 'ACTIVE' })
+      .first();
+    const closedConflict = await db<BudgetPeriod>('budget_periods')
+      .where({ user_id: userId, status: 'CLOSED' })
+      .where('end_date', '>=', this.formatDateOnly(transaction.transactionDate))
+      .first();
+    const cycleAction = this.getCycleAction(
+      transaction,
+      activePeriod,
+      Boolean(closedConflict),
+    );
+
     return {
       message: 'Detail transaksi berhasil diambil.',
       data: {
@@ -693,11 +655,77 @@ export class TransactionsService {
         id: Number(transaction.id),
         accountId: Number(transaction.accountId),
         currentBalance: Number(transaction.currentBalance),
-        budgetPeriodId: Number(transaction.budgetPeriodId),
-        savingPercentage: Number(transaction.savingPercentage),
+        budgetPeriodId:
+          transaction.budgetPeriodId === null
+            ? null
+            : Number(transaction.budgetPeriodId),
+        savingPercentage:
+          transaction.savingPercentage === null
+            ? null
+            : Number(transaction.savingPercentage),
         amount: Number(transaction.amount),
+        cycleSourcePeriodId:
+          transaction.cycleSourcePeriodId === null
+            ? null
+            : Number(transaction.cycleSourcePeriodId),
+        cycleAction,
       },
     };
+  }
+
+  private getCycleAction(
+    transaction: TransactionDetailRow,
+    activePeriod: BudgetPeriod | undefined,
+    closedConflict: boolean,
+  ) {
+    if (transaction.transactionType !== TransactionType.INCOME) {
+      return { status: 'NOT_INCOME', message: null };
+    }
+
+    if (transaction.cycleSourcePeriodId !== null) {
+      return {
+        status: 'ALREADY_SOURCE',
+        message:
+          activePeriod?.id === Number(transaction.cycleSourcePeriodId)
+            ? 'Starts current cycle'
+            : 'Starts a financial cycle',
+      };
+    }
+
+    if (transaction.periodStatus === 'CLOSED' || closedConflict) {
+      return {
+        status: 'CLOSED_HISTORY',
+        message:
+          "This income is part of a closed cycle and can't start a new cycle from here.",
+      };
+    }
+
+    const transactionDate = this.formatDateOnly(transaction.transactionDate);
+    if (
+      transactionDate > new Date().toISOString().slice(0, 10) ||
+      (activePeriod &&
+        transactionDate <= this.formatDateOnly(activePeriod.start_date))
+    ) {
+      return {
+        status: 'INVALID_DATE',
+        message:
+          'This income date cannot start a new cycle without changing financial history.',
+      };
+    }
+
+    return {
+      status: 'AVAILABLE',
+      message: 'Start a new financial cycle from this income.',
+      currentCycleEndDate: activePeriod
+        ? this.getPreviousDateForCycle(transactionDate)
+        : null,
+    };
+  }
+
+  private getPreviousDateForCycle(dateValue: string): string {
+    const date = new Date(`${dateValue}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() - 1);
+    return date.toISOString().slice(0, 10);
   }
 
   async update(
@@ -758,6 +786,22 @@ export class TransactionsService {
           ? existingTransaction.note
           : updateTransactionDto.note;
 
+      const sourceCycle = await trx<BudgetPeriod>('budget_periods')
+        .where({ user_id: userId, source_transaction_id: id })
+        .forUpdate()
+        .first();
+
+      if (
+        sourceCycle &&
+        (newTransactionType !== TransactionType.INCOME ||
+          newTransactionDate !==
+            this.formatDateOnly(existingTransaction.transaction_date))
+      ) {
+        throw new BadRequestException(
+          'The date or type of an income that starts a cycle cannot be changed.',
+        );
+      }
+
       if (!Number.isFinite(newAmount) || newAmount <= 0) {
         throw new BadRequestException(
           'Nominal transaksi harus lebih besar dari nol.',
@@ -781,7 +825,7 @@ export class TransactionsService {
         .orderBy('start_date', 'desc')
         .first();
 
-      if (!targetPeriod) {
+      if (!targetPeriod && newTransactionType !== TransactionType.INCOME) {
         throw new BadRequestException(
           'Tidak ditemukan periode budgeting untuk tanggal transaksi tersebut.',
         );
@@ -931,7 +975,7 @@ export class TransactionsService {
         })
         .update({
           account_id: newAccountId,
-          budget_period_id: targetPeriod.id,
+          budget_period_id: targetPeriod?.id ?? null,
           transaction_type: newTransactionType,
           amount: newAmount,
           transaction_date: newTransactionDate,
@@ -952,7 +996,10 @@ export class TransactionsService {
           transaction: {
             id: Number(updatedTransaction.id),
             accountId: Number(updatedTransaction.account_id),
-            budgetPeriodId: Number(updatedTransaction.budget_period_id),
+            budgetPeriodId:
+              updatedTransaction.budget_period_id === null
+                ? null
+                : Number(updatedTransaction.budget_period_id),
             transactionType: updatedTransaction.transaction_type,
             amount: Number(updatedTransaction.amount),
             transactionDate: updatedTransaction.transaction_date,
@@ -965,13 +1012,15 @@ export class TransactionsService {
             currentBalance: Number(account.current_balance),
             isActive: account.is_active,
           })),
-          budgetPeriod: {
-            id: Number(targetPeriod.id),
-            startDate: targetPeriod.start_date,
-            endDate: targetPeriod.end_date,
-            savingPercentage: Number(targetPeriod.saving_percentage),
-            status: targetPeriod.status,
-          },
+          budgetPeriod: targetPeriod
+            ? {
+                id: Number(targetPeriod.id),
+                startDate: targetPeriod.start_date,
+                endDate: targetPeriod.end_date,
+                savingPercentage: Number(targetPeriod.saving_percentage),
+                status: targetPeriod.status,
+              }
+            : null,
         },
       };
     });
@@ -1001,6 +1050,17 @@ export class TransactionsService {
       if (existingTransaction.transaction_type === TransactionType.TRANSFER) {
         throw new BadRequestException(
           'Hapus transaksi transfer belum didukung.',
+        );
+      }
+
+      const sourceCycle = await trx<BudgetPeriod>('budget_periods')
+        .where({ user_id: userId, source_transaction_id: id })
+        .forUpdate()
+        .first();
+
+      if (sourceCycle) {
+        throw new BadRequestException(
+          'An income that starts a financial cycle cannot be deleted.',
         );
       }
 

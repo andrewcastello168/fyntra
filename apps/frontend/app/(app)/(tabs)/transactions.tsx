@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Modal,
@@ -9,11 +9,14 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiFetch, getStoredAccessToken } from "@/src/api/client";
 import {
+  Account,
+  AccountsResponse,
   Transaction,
+  TransactionResponse,
   TransactionType,
   TransactionsResponse,
 } from "@/src/api/types";
@@ -22,6 +25,7 @@ import { EmptyState } from "@/src/components/EmptyState";
 import { ErrorState } from "@/src/components/ErrorState";
 import { LoadingState } from "@/src/components/LoadingState";
 import { TextInput } from "@/src/components/TextInput";
+import { SelectField } from "@/src/components/SelectField";
 import { ThemeColors, useTheme } from "@/src/theme";
 import {
   errorMessage,
@@ -42,18 +46,24 @@ export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const { transactionId } = useLocalSearchParams<{ transactionId?: string }>();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [filter, setFilter] = useState<TransactionType | "ALL">("ALL");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [editAmount, setEditAmount] = useState("");
+  const [editAccountId, setEditAccountId] = useState<number | null>(null);
   const [editDate, setEditDate] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editNote, setEditNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [startingCycle, setStartingCycle] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const hasLoaded = useRef(false);
+  const openedTransactionId = useRef<number | null>(null);
 
   const transactions = useMemo(
     () => filter === "ALL"
@@ -70,11 +80,15 @@ export default function TransactionsScreen() {
       try {
         const token = await getStoredAccessToken();
         if (!token) throw new Error("Login session not found.");
-        const firstPage = await apiFetch<TransactionsResponse>(
-          "/transactions?page=1&limit=100",
-          {},
-          token,
-        );
+        const [firstPage, accountsResponse] = await Promise.all([
+          apiFetch<TransactionsResponse>(
+            "/transactions?page=1&limit=100",
+            {},
+            token,
+          ),
+          apiFetch<AccountsResponse>("/accounts", {}, token),
+        ]);
+        setAccounts(accountsResponse.data);
         const loaded = [...firstPage.data];
         for (let requestedPage = 2; requestedPage <= firstPage.pagination.totalPages; requestedPage += 1) {
           const nextPage = await apiFetch<TransactionsResponse>(
@@ -102,6 +116,45 @@ export default function TransactionsScreen() {
     }, [loadTransactions]),
   );
 
+  useEffect(() => {
+    const id = Number(transactionId);
+    if (
+      !Number.isInteger(id) ||
+      !hasLoaded.current ||
+      openedTransactionId.current === id
+    ) {
+      return;
+    }
+    openedTransactionId.current = id;
+    const openLinkedTransaction = async () => {
+      setDetailLoading(true);
+      try {
+        const token = await getStoredAccessToken();
+        if (!token) throw new Error("Login session not found.");
+        const response = await apiFetch<TransactionResponse>(
+          `/transactions/${id}`,
+          {},
+          token,
+        );
+        const transaction = response.data;
+        setSelected(transaction);
+        setEditAccountId(transaction.accountId);
+        setEditAmount(String(transaction.amount));
+        setEditDate(formatDate(transaction.transactionDate));
+        setEditCategory(transaction.category ?? "");
+        setEditNote(transaction.note ?? "");
+      } catch (detailError) {
+        Alert.alert(
+          "Failed to open transaction.",
+          errorMessage(detailError, "Try again from the transaction list."),
+        );
+      } finally {
+        setDetailLoading(false);
+      }
+    };
+    void openLinkedTransaction();
+  }, [transactionId, allTransactions]);
+
   function changeFilter(nextFilter: TransactionType | "ALL") {
     setFilter(nextFilter);
   }
@@ -114,7 +167,33 @@ export default function TransactionsScreen() {
       );
       return;
     }
+    void openEditById(transaction.id);
+  }
+
+  async function openEditById(id: number) {
+    setDetailLoading(true);
+    try {
+      const token = await getStoredAccessToken();
+      if (!token) throw new Error("Login session not found.");
+      const response = await apiFetch<TransactionResponse>(
+        `/transactions/${id}`,
+        {},
+        token,
+      );
+      populateEdit(response.data);
+    } catch (detailError) {
+      Alert.alert(
+        "Failed to open transaction.",
+        errorMessage(detailError, "Try again from the transaction list."),
+      );
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function populateEdit(transaction: Transaction) {
     setSelected(transaction);
+    setEditAccountId(transaction.accountId);
     setEditAmount(String(transaction.amount));
     setEditDate(formatDate(transaction.transactionDate));
     setEditCategory(transaction.category ?? "");
@@ -124,6 +203,7 @@ export default function TransactionsScreen() {
   async function updateTransaction() {
     if (
       !selected ||
+      !editAccountId ||
       !editAmount ||
       Number(editAmount) <= 0 ||
       !/^\d{4}-\d{2}-\d{2}$/.test(editDate)
@@ -143,6 +223,7 @@ export default function TransactionsScreen() {
         {
           method: "PATCH",
           body: JSON.stringify({
+            accountId: editAccountId,
             amount: Number(editAmount),
             transactionDate: editDate,
             category: editCategory.trim() || null,
@@ -151,8 +232,21 @@ export default function TransactionsScreen() {
         },
         token,
       );
-      setSelected(null);
       await loadTransactions(true);
+      const detail = await apiFetch<TransactionResponse>(
+        `/transactions/${selected.id}`,
+        {},
+        token,
+      );
+      populateEdit(detail.data);
+      if (
+        detail.data.transactionType === "INCOME" &&
+        detail.data.cycleAction?.status === "AVAILABLE"
+      ) {
+        promptStartCycle(detail.data, "Income updated");
+      } else {
+        Alert.alert("Transaction updated", "Your changes were saved.");
+      }
     } catch (updateError) {
       Alert.alert(
         "Update failed",
@@ -160,6 +254,53 @@ export default function TransactionsScreen() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function promptStartCycle(income: Transaction, title = "Start a new cycle?") {
+    const body = [
+      `Start a new financial cycle from this income on ${formatFriendlyDate(income.transactionDate)}?`,
+      income.cycleAction?.currentCycleEndDate
+        ? `Your current cycle will end on ${formatFriendlyDate(income.cycleAction.currentCycleEndDate)}.`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    Alert.alert(title, body, [
+      { text: "Not Now", style: "cancel" },
+      { text: "Start New Cycle", onPress: () => void startCycle(income.id) },
+    ]);
+  }
+
+  async function startCycle(transactionIdToStart: number) {
+    if (startingCycle) return;
+    setStartingCycle(true);
+    try {
+      const token = await getStoredAccessToken();
+      if (!token) throw new Error("Login session not found.");
+      await apiFetch(
+        `/budget-periods/from-income/${transactionIdToStart}`,
+        { method: "POST", body: JSON.stringify({}) },
+        token,
+      );
+      await loadTransactions(true);
+      const detail = await apiFetch<TransactionResponse>(
+        `/transactions/${transactionIdToStart}`,
+        {},
+        token,
+      );
+      populateEdit(detail.data);
+      Alert.alert(
+        "Financial cycle started",
+        `The new cycle starts on ${formatFriendlyDate(detail.data.transactionDate)}.`,
+      );
+    } catch (cycleError) {
+      Alert.alert(
+        "Failed to start cycle",
+        errorMessage(cycleError, "Try again from this income."),
+      );
+    } finally {
+      setStartingCycle(false);
     }
   }
 
@@ -297,6 +438,9 @@ export default function TransactionsScreen() {
                   {transaction.note ? (
                     <Text style={styles.note}>{transaction.note}</Text>
                   ) : null}
+                  {transaction.cycleSourcePeriodId ? (
+                    <Text style={styles.cycleSource}>Starts a financial cycle</Text>
+                  ) : null}
                 </Pressable>
                 <View style={styles.actionRow}>
                   <Text style={styles.editHint}>
@@ -304,14 +448,16 @@ export default function TransactionsScreen() {
                       ? "Tap for details"
                       : "Tap to edit"}
                   </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete transaction ${transaction.category || transactionLabel(transaction.transactionType)}`}
-                    hitSlop={8}
-                    onPress={() => confirmDelete(transaction)}
-                  >
-                    <Text style={styles.deleteText}>Delete</Text>
-                  </Pressable>
+                  {!transaction.cycleSourcePeriodId ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete transaction ${transaction.category || transactionLabel(transaction.transactionType)}`}
+                      hitSlop={8}
+                      onPress={() => confirmDelete(transaction)}
+                    >
+                      <Text style={styles.deleteText}>Delete</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -325,11 +471,19 @@ export default function TransactionsScreen() {
         </ScrollView>
       </View>
 
+      {detailLoading ? (
+        <View pointerEvents="none" style={styles.detailLoading}>
+          <Text style={styles.refreshHint}>Opening transaction...</Text>
+        </View>
+      ) : null}
+
       <Modal
         visible={Boolean(selected)}
         animationType="slide"
         transparent
-        onRequestClose={() => setSelected(null)}
+        onRequestClose={() => {
+          if (!saving && !startingCycle) setSelected(null);
+        }}
       >
         <View style={styles.modalBackdrop}>
           <ScrollView
@@ -341,43 +495,106 @@ export default function TransactionsScreen() {
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit transaction</Text>
-              <Pressable onPress={() => setSelected(null)}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close transaction"
+                accessibilityState={{ disabled: saving || startingCycle }}
+                disabled={saving || startingCycle}
+                hitSlop={8}
+                onPress={() => setSelected(null)}
+              >
                 <Text style={styles.close}>Close</Text>
               </Pressable>
             </View>
+            <SelectField
+              label="Account"
+              selectedId={editAccountId}
+              options={accounts.map((account) => ({
+                id: account.id,
+                label: account.accountName,
+                disabled: !account.isActive && account.id !== editAccountId,
+              }))}
+              onSelect={setEditAccountId}
+              disabled={saving || startingCycle}
+            />
             <TextInput
               label="Amount"
               value={editAmount}
               onChangeText={setEditAmount}
               keyboardType="decimal-pad"
+              editable={!saving && !startingCycle}
             />
             <TextInput
               label="Transaction date"
               value={editDate}
               onChangeText={setEditDate}
               placeholder="YYYY-MM-DD"
+              editable={
+                !saving && !startingCycle && !selected?.cycleSourcePeriodId
+              }
             />
+            {selected?.cycleSourcePeriodId ? (
+              <Text style={styles.cycleExplanation}>
+                The date is locked because this income starts a financial cycle.
+              </Text>
+            ) : null}
             <TextInput
               label="Category"
               value={editCategory}
               onChangeText={setEditCategory}
+              editable={!saving && !startingCycle}
             />
             <TextInput
               label="Note"
               value={editNote}
               onChangeText={setEditNote}
               multiline
+              editable={!saving && !startingCycle}
             />
             <Button
               label="Save changes"
               onPress={() => void updateTransaction()}
               loading={saving}
+              disabled={startingCycle}
             />
+            {selected?.transactionType === "INCOME" ? (
+              <View style={styles.cycleSection}>
+                {selected.cycleAction?.status === "AVAILABLE" ? (
+                  <Button
+                    label="Start New Cycle"
+                    variant="secondary"
+                    loading={startingCycle}
+                    disabled={saving}
+                    onPress={() => promptStartCycle(selected)}
+                  />
+                ) : (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={
+                      selected.cycleAction?.status === "ALREADY_SOURCE"
+                        ? styles.cycleSource
+                        : styles.cycleExplanation
+                    }
+                  >
+                    {selected.cycleAction?.message}
+                  </Text>
+                )}
+              </View>
+            ) : null}
           </ScrollView>
         </View>
       </Modal>
     </>
   );
+}
+
+function formatFriendlyDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
 }
 
 function createStyles(colors: ThemeColors) {
@@ -418,6 +635,17 @@ function createStyles(colors: ThemeColors) {
     },
     selectedFilterText: { color: colors.onPrimary },
     refreshHint: { color: colors.primary, fontSize: 12, fontWeight: "700" },
+    detailLoading: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      bottom: 0,
+      justifyContent: "center",
+      left: 0,
+      opacity: 0.9,
+      position: "absolute",
+      right: 0,
+      top: 0,
+    },
     list: {},
     transactionCard: {
       borderBottomColor: colors.border,
@@ -442,6 +670,18 @@ function createStyles(colors: ThemeColors) {
     amount: { fontSize: 14, fontWeight: "800", textAlign: "right" },
     accountLine: { color: colors.textPrimary, fontSize: 13 },
     note: { color: colors.textSecondary, fontSize: 13 },
+    cycleSource: { color: colors.success, fontSize: 13, fontWeight: "700" },
+    cycleExplanation: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    cycleSection: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      gap: 12,
+      paddingTop: 16,
+    },
     actionRow: {
       alignItems: "center",
       flexDirection: "row",

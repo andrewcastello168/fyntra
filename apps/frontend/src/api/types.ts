@@ -25,6 +25,17 @@ export type Transaction = {
   note: string | null;
   createdAt?: string;
   updatedAt?: string;
+  cycleSourcePeriodId?: number | null;
+  cycleAction?: {
+    status:
+      | "AVAILABLE"
+      | "ALREADY_SOURCE"
+      | "CLOSED_HISTORY"
+      | "INVALID_DATE"
+      | "NOT_INCOME";
+    message: string | null;
+    currentCycleEndDate?: string | null;
+  };
 };
 
 export type BudgetPeriod = {
@@ -33,6 +44,7 @@ export type BudgetPeriod = {
   endDate: string;
   savingPercentage: number;
   status: string;
+  sourceTransactionId?: number | null;
 };
 
 export type Dashboard = {
@@ -76,7 +88,28 @@ export type TransactionDraftResponse = {
     missingFields: string[];
     warnings: string[];
     accountResolution: "exact" | "ambiguous" | "unmatched";
+    requestedAccountName: string | null;
+    accountCandidates: { id: number; accountName: string }[];
   };
+};
+export type TransactionResponse = { data: Transaction };
+export type CreateTransactionResponse = {
+  data: {
+    transaction: {
+      id: number;
+      transactionType: TransactionType;
+      amount: number;
+      transactionDate: string;
+      category: string | null;
+      note: string | null;
+      sourceAccountId: number;
+      destinationAccountId: number | null;
+    };
+    budgetPeriod: BudgetPeriod | null;
+  };
+};
+export type StartCycleResponse = {
+  data: { alreadyStarted: boolean; cycle: BudgetPeriod };
 };
 export type TransactionsResponse = {
   data: Transaction[];

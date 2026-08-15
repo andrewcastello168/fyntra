@@ -5,11 +5,13 @@ export function Button({
   label,
   onPress,
   loading = false,
+  disabled = false,
   variant = "primary",
 }: {
   label: string;
   onPress: () => void;
   loading?: boolean;
+  disabled?: boolean;
   variant?: "primary" | "secondary" | "destructive";
 }) {
   const { colors } = useTheme();
@@ -18,8 +20,8 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: loading }}
-      disabled={loading}
+      accessibilityState={{ disabled: loading || disabled }}
+      disabled={loading || disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
@@ -29,7 +31,7 @@ export function Button({
             ? styles.destructive
             : styles.primary,
         pressed && styles.pressed,
-        loading && styles.disabled,
+        (loading || disabled) && styles.disabled,
       ]}
     >
       {loading ? (

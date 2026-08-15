@@ -5,11 +5,14 @@ import { useTheme } from "@/src/theme";
 
 export function BalanceVisibilityButton() {
   const { colors } = useTheme();
-  const { isBalanceVisible, unlockBalances, lockBalances } = useBalanceVisibility();
+  const { isBalanceVisible, showBalances, lockBalances } =
+    useBalanceVisibility();
+
   async function handlePress() {
-    if (isBalanceVisible) return lockBalances();
-    if (!(await unlockBalances())) {
-      Alert.alert("Balances remain hidden", "Biometric verification was cancelled or is unavailable on this device.");
+    if (isBalanceVisible) {
+      return lockBalances();
+    } else {
+      return showBalances();
     }
   }
 

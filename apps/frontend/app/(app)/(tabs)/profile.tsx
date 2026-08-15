@@ -64,7 +64,6 @@ export default function ProfileScreen() {
       <SettingsSection label="PREFERENCES">
         <SettingsRow icon="color-palette-outline" title="Appearance" detail={mode[0].toUpperCase() + mode.slice(1)} onPress={() => router.push("/appearance" as never)} />
         <SettingsRow icon="cash-outline" title="Currency" detail="IDR" />
-        <SettingsRow icon="calendar-outline" title="Start of budget period" detail="Manage in a new income" />
       </SettingsSection>
       <SettingsSection label="PRIVACY & SECURITY">
         <SettingsRow icon="finger-print-outline" title="Biometric login" detail={biometricEnabled ? "Enabled" : "Disabled"} trailing={<Switch value={biometricEnabled} disabled={biometricBusy} onValueChange={(v) => void toggleBiometric(v)} trackColor={{ false: colors.border, true: colors.primary }} thumbColor={colors.surface} />} />

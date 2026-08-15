@@ -1,7 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { KnexService } from '../database/knex.service';
-import { TransactionDraftsService } from './transaction-drafts.service';
+import {
+  parseIndonesianAmount,
+  TransactionDraftsService,
+} from './transaction-drafts.service';
 
 describe('TransactionDraftsService', () => {
   const accounts = [
@@ -60,11 +63,75 @@ describe('TransactionDraftsService', () => {
         missingFields: [],
         warnings: [],
         accountResolution: 'exact',
+        requestedAccountName: 'BCA',
+        accountCandidates: [{ id: 1, accountName: 'BCA' }],
       },
     });
 
     expect(connection).toHaveBeenCalledWith('accounts');
     expect(generateJson).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['35k', 35000],
+    ['35 rb', 35000],
+    ['35rb', 35000],
+    ['35 ribu', 35000],
+    ['50ribu', 50000],
+    ['1jt', 1000000],
+    ['1 jt', 1000000],
+    ['1 juta', 1000000],
+    ['1.5jt', 1500000],
+    ['1,5jt', 1500000],
+    ['1.5 juta', 1500000],
+    ['1,5 juta', 1500000],
+    ['250k', 250000],
+    ['250 ribu', 250000],
+  ])('parses Indonesian amount format %s', (text, expected) => {
+    expect(parseIndonesianAmount(text)).toBe(expected);
+  });
+
+  it('uses the deterministic Indonesian amount over an incorrect AI amount', async () => {
+    const { service } = createService({
+      transactionType: 'EXPENSE',
+      amount: 50,
+      transactionDate: '2026-08-12',
+      accountName: 'BCA',
+      destinationAccountName: null,
+      category: 'Food & Drink',
+      note: 'Makan',
+    });
+
+    const result = await service.create(
+      { ...request, text: 'aku beli makan 50 rb pakai bca' },
+      'user-1',
+    );
+
+    expect(result.data.draft.amount).toBe(50000);
+  });
+
+  it('returns account candidates when a name is ambiguous', async () => {
+    const { service } = createService(
+      {
+        transactionType: 'EXPENSE',
+        amount: 35000,
+        transactionDate: '2026-08-12',
+        accountName: 'BCA',
+        destinationAccountName: null,
+        category: 'Food & Drink',
+        note: 'Coffee',
+      },
+      [
+        { id: 1, account_name: 'BCA' },
+        { id: 3, account_name: 'BCA' },
+      ],
+    );
+
+    const result = await service.create(request, 'user-1');
+
+    expect(result.data.accountResolution).toBe('ambiguous');
+    expect(result.data.draft.accountId).toBeNull();
+    expect(result.data.accountCandidates).toHaveLength(2);
   });
 
   it('returns unmatched account information without inventing an ID', async () => {

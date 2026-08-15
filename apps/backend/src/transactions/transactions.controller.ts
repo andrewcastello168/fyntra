@@ -15,8 +15,8 @@ import {
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { SupabaseAuthGuard } from 'src/auth/guards/supabase-auth.guard';
-import type { AuthenticatedRequest } from 'src/auth/types/authenticated-request.type';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request.type';
 import { TransactionType } from './enums/transaction-type.enum';
 
 @Controller('transactions')

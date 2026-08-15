@@ -54,11 +54,12 @@ export class AiService {
           model,
           messages,
           response_format: { type: 'json_object' },
+          stream: false,
         }),
         signal: controller.signal,
       });
 
-      console.log(response);
+      // console.log(response);
 
       if (!response.ok) {
         throw new BadGatewayException(
