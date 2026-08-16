@@ -22,8 +22,8 @@ interface AccountRow {
 interface BudgetPeriod {
   id: number;
   user_id: string;
-  start_date: string;
-  end_date: string;
+  start_date: string | Date;
+  end_date: string | Date;
   saving_percentage: number;
   status: string;
   created_at: Date;
@@ -39,7 +39,7 @@ interface TransactionRow {
   transaction_type: TransactionType;
   destination_account_id: number | null;
   amount: number;
-  transaction_date: string;
+  transaction_date: string | Date;
   category: string | null;
   note: string | null;
   created_at: Date;
@@ -55,14 +55,14 @@ interface TransactionDetailRow {
   accountType: string;
   currentBalance: number | string;
   budgetPeriodId: number | string | null;
-  periodStartDate: string | null;
-  periodEndDate: string | null;
+  periodStartDate: string | Date | null;
+  periodEndDate: string | Date | null;
   savingPercentage: number | string | null;
   periodStatus: string | null;
   cycleSourcePeriodId: number | string | null;
   transactionType: TransactionType;
   amount: number | string;
-  transactionDate: string;
+  transactionDate: string | Date;
   category: string | null;
   note: string | null;
   createdAt: Date;
@@ -103,8 +103,35 @@ type TransactionListRow = {
 export class TransactionsService {
   constructor(private readonly knexService: KnexService) {}
 
-  private formatDateOnly(dateValue: string): string {
-    return dateValue.slice(0, 10);
+  private formatDateOnly(dateValue: string | Date | null | undefined): string {
+    if (dateValue instanceof Date) {
+      if (Number.isNaN(dateValue.getTime())) {
+        throw new BadRequestException('Transaction date is invalid.');
+      }
+
+      const year = dateValue.getFullYear();
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (typeof dateValue === 'string') {
+      const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(dateValue.trim());
+      if (match) {
+        const normalized = `${match[1]}-${match[2]}-${match[3]}`;
+        const parsed = new Date(`${normalized}T00:00:00.000Z`);
+        if (
+          !Number.isNaN(parsed.getTime()) &&
+          parsed.getUTCFullYear() === Number(match[1]) &&
+          parsed.getUTCMonth() + 1 === Number(match[2]) &&
+          parsed.getUTCDate() === Number(match[3])
+        ) {
+          return normalized;
+        }
+      }
+    }
+
+    throw new BadRequestException('Transaction date is invalid.');
   }
 
   create(createTransactionDto: CreateTransactionDto, userId: string) {
@@ -253,7 +280,7 @@ export class TransactionsService {
               ? destinationAccountId
               : null,
 
-          budget_period_id: activePeriod?.id ?? null,
+          budget_period_id: getBudgetPeriodIdForNewTransaction(activePeriod),
           transaction_type: transactionType,
           amount: transactionAmount,
           transaction_date: this.formatDateOnly(transactionDate),
@@ -381,7 +408,9 @@ export class TransactionsService {
             id: newTransaction.id,
             transactionType: newTransaction.transaction_type,
             amount: Number(newTransaction.amount),
-            transactionDate: newTransaction.transaction_date,
+            transactionDate: this.formatDateOnly(
+              newTransaction.transaction_date,
+            ),
             category: newTransaction.category,
             note: newTransaction.note,
 
@@ -555,6 +584,7 @@ export class TransactionsService {
             : Number(transaction.budgetPeriodId),
 
         amount: Number(transaction.amount),
+        transactionDate: this.formatDateOnly(transaction.transactionDate),
         cycleSourcePeriodId:
           transaction.cycleSourcePeriodId === null
             ? null
@@ -638,14 +668,18 @@ export class TransactionsService {
     const activePeriod = await db<BudgetPeriod>('budget_periods')
       .where({ user_id: userId, status: 'ACTIVE' })
       .first();
-    const closedConflict = await db<BudgetPeriod>('budget_periods')
-      .where({ user_id: userId, status: 'CLOSED' })
-      .where('end_date', '>=', this.formatDateOnly(transaction.transactionDate))
+    const successorCycle = await db<BudgetPeriod>('budget_periods')
+      .where({ user_id: userId })
+      .where(
+        'start_date',
+        '>',
+        this.formatDateOnly(transaction.transactionDate),
+      )
       .first();
     const cycleAction = this.getCycleAction(
       transaction,
       activePeriod,
-      Boolean(closedConflict),
+      Boolean(successorCycle),
     );
 
     return {
@@ -664,6 +698,7 @@ export class TransactionsService {
             ? null
             : Number(transaction.savingPercentage),
         amount: Number(transaction.amount),
+        transactionDate: this.formatDateOnly(transaction.transactionDate),
         cycleSourcePeriodId:
           transaction.cycleSourcePeriodId === null
             ? null
@@ -676,7 +711,7 @@ export class TransactionsService {
   private getCycleAction(
     transaction: TransactionDetailRow,
     activePeriod: BudgetPeriod | undefined,
-    closedConflict: boolean,
+    hasSuccessorCycle: boolean,
   ) {
     if (transaction.transactionType !== TransactionType.INCOME) {
       return { status: 'NOT_INCOME', message: null };
@@ -692,7 +727,15 @@ export class TransactionsService {
       };
     }
 
-    if (transaction.periodStatus === 'CLOSED' || closedConflict) {
+    if (hasSuccessorCycle) {
+      return {
+        status: 'CLOSED_HISTORY',
+        message:
+          "A newer financial cycle already exists, so this income can't be used as a cycle start.",
+      };
+    }
+
+    if (transaction.periodStatus === 'CLOSED') {
       return {
         status: 'CLOSED_HISTORY',
         message:
@@ -1002,7 +1045,9 @@ export class TransactionsService {
                 : Number(updatedTransaction.budget_period_id),
             transactionType: updatedTransaction.transaction_type,
             amount: Number(updatedTransaction.amount),
-            transactionDate: updatedTransaction.transaction_date,
+            transactionDate: this.formatDateOnly(
+              updatedTransaction.transaction_date,
+            ),
             category: updatedTransaction.category,
             note: updatedTransaction.note,
           },
@@ -1141,7 +1186,9 @@ export class TransactionsService {
             id: Number(deletedTransaction.id),
             transactionType: deletedTransaction.transaction_type,
             amount: Number(deletedTransaction.amount),
-            transactionDate: deletedTransaction.transaction_date,
+            transactionDate: this.formatDateOnly(
+              deletedTransaction.transaction_date,
+            ),
             category: deletedTransaction.category,
             note: deletedTransaction.note,
           },
@@ -1154,4 +1201,10 @@ export class TransactionsService {
       };
     });
   }
+}
+
+export function getBudgetPeriodIdForNewTransaction(
+  activePeriod: Pick<BudgetPeriod, 'id'> | undefined,
+): number | null {
+  return activePeriod?.id ?? null;
 }

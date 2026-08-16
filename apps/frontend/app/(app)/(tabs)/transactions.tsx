@@ -25,6 +25,8 @@ import { EmptyState } from "@/src/components/EmptyState";
 import { ErrorState } from "@/src/components/ErrorState";
 import { LoadingState } from "@/src/components/LoadingState";
 import { TextInput } from "@/src/components/TextInput";
+import { AmountInput } from "@/src/components/AmountInput";
+import { DateField } from "@/src/components/DateField";
 import { SelectField } from "@/src/components/SelectField";
 import { ThemeColors, useTheme } from "@/src/theme";
 import {
@@ -239,14 +241,7 @@ export default function TransactionsScreen() {
         token,
       );
       populateEdit(detail.data);
-      if (
-        detail.data.transactionType === "INCOME" &&
-        detail.data.cycleAction?.status === "AVAILABLE"
-      ) {
-        promptStartCycle(detail.data, "Income updated");
-      } else {
-        Alert.alert("Transaction updated", "Your changes were saved.");
-      }
+      Alert.alert("Transaction updated", "Your changes were saved.");
     } catch (updateError) {
       Alert.alert(
         "Update failed",
@@ -257,7 +252,7 @@ export default function TransactionsScreen() {
     }
   }
 
-  function promptStartCycle(income: Transaction, title = "Start a new cycle?") {
+  function promptStartCycle(income: Transaction, title = "Use as cycle start?") {
     const body = [
       `Start a new financial cycle from this income on ${formatFriendlyDate(income.transactionDate)}?`,
       income.cycleAction?.currentCycleEndDate
@@ -268,7 +263,7 @@ export default function TransactionsScreen() {
       .join("\n\n");
     Alert.alert(title, body, [
       { text: "Not Now", style: "cancel" },
-      { text: "Start New Cycle", onPress: () => void startCycle(income.id) },
+      { text: "Use as Cycle Start", onPress: () => void startCycle(income.id) },
     ]);
   }
 
@@ -517,20 +512,17 @@ export default function TransactionsScreen() {
               onSelect={setEditAccountId}
               disabled={saving || startingCycle}
             />
-            <TextInput
-              label="Amount"
+            <AmountInput
               value={editAmount}
               onChangeText={setEditAmount}
-              keyboardType="decimal-pad"
               editable={!saving && !startingCycle}
             />
-            <TextInput
+            <DateField
               label="Transaction date"
               value={editDate}
-              onChangeText={setEditDate}
-              placeholder="YYYY-MM-DD"
-              editable={
-                !saving && !startingCycle && !selected?.cycleSourcePeriodId
+              onChange={setEditDate}
+              disabled={
+                saving || startingCycle || Boolean(selected?.cycleSourcePeriodId)
               }
             />
             {selected?.cycleSourcePeriodId ? (
@@ -561,7 +553,7 @@ export default function TransactionsScreen() {
               <View style={styles.cycleSection}>
                 {selected.cycleAction?.status === "AVAILABLE" ? (
                   <Button
-                    label="Start New Cycle"
+                    label="Use as cycle start"
                     variant="secondary"
                     loading={startingCycle}
                     disabled={saving}

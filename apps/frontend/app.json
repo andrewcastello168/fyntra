@@ -20,7 +20,11 @@
     },
 
     "android": {
-      "icon": "./assets/images/icon.png",
+      "package": "com.andrew.fyntra",
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F7F3",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
+      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },

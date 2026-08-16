@@ -30,6 +30,7 @@ import { ErrorState } from "@/src/components/ErrorState";
 import { LoadingState } from "@/src/components/LoadingState";
 import { TextInput } from "@/src/components/TextInput";
 import { AmountInput } from "@/src/components/AmountInput";
+import { DateField } from "@/src/components/DateField";
 import { SelectField, SelectOption } from "@/src/components/SelectField";
 import { ThemeColors, useTheme } from "@/src/theme";
 import { errorMessage, formatCurrency } from "@/src/utils/format";
@@ -89,6 +90,7 @@ export default function CreateScreen() {
   );
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
+  const [startNewCycle, setStartNewCycle] = useState(false);
   const [smartInputOpen, setSmartInputOpen] = useState(false);
   const [smartInputText, setSmartInputText] = useState("");
   const [generatingDraft, setGeneratingDraft] = useState(false);
@@ -131,6 +133,7 @@ export default function CreateScreen() {
 
   function selectType(type: TransactionType) {
     setSelectedType(type);
+    if (type !== "INCOME") setStartNewCycle(false);
   }
 
   function selectSourceAccount(nextId: number) {
@@ -283,6 +286,7 @@ export default function CreateScreen() {
       transactionDate,
       category: category.trim() || null,
       note: note.trim() || null,
+      startNewCycle,
     });
   }
 
@@ -305,6 +309,7 @@ export default function CreateScreen() {
       transactionDate: smartDraft.transactionDate,
       category: smartDraft.category,
       note: smartDraft.note,
+      startNewCycle,
     });
   }
 
@@ -316,6 +321,7 @@ export default function CreateScreen() {
     transactionDate: string;
     category: string | null;
     note: string | null;
+    startNewCycle: boolean;
   }) {
     if (!input.accountId || submitting) return;
 
@@ -350,8 +356,9 @@ export default function CreateScreen() {
       setAmount("");
       setCategory("");
       setNote("");
+      setStartNewCycle(false);
 
-      if (saved.transactionType === "INCOME") {
+      if (saved.transactionType === "INCOME" && input.startNewCycle) {
         const detail = await apiFetch<{ data: Transaction }>(
           `/transactions/${saved.id}`,
           {},
@@ -554,11 +561,11 @@ export default function CreateScreen() {
               />
             ) : null}
             <Text style={styles.sectionLabel}>WHEN AND WHY?</Text>
-            <TextInput
+            <DateField
               label="Transaction date"
               value={transactionDate}
-              onChangeText={setTransactionDate}
-              placeholder="YYYY-MM-DD"
+              onChange={setTransactionDate}
+              disabled={submitting}
             />
             {selectedType !== "TRANSFER" ? (
               <TextInput
@@ -575,6 +582,14 @@ export default function CreateScreen() {
               placeholder="Add a note"
               multiline
             />
+
+            {selectedType === "INCOME" ? (
+              <CycleChoice
+                startNewCycle={startNewCycle}
+                onChange={setStartNewCycle}
+                styles={styles}
+              />
+            ) : null}
 
             {saveStatus ? (
               <Text accessibilityLiveRegion="polite" style={styles.saveStatus}>
@@ -713,6 +728,13 @@ export default function CreateScreen() {
                     }}
                   />
                 ) : null}
+                {smartDraft.transactionType === "INCOME" ? (
+                  <CycleChoice
+                    startNewCycle={startNewCycle}
+                    onChange={setStartNewCycle}
+                    styles={styles}
+                  />
+                ) : null}
                 {saveStatus ? (
                   <Text
                     accessibilityLiveRegion="polite"
@@ -780,6 +802,63 @@ function formatFriendlyDate(value: string) {
   }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
 }
 
+function CycleChoice({
+  startNewCycle,
+  onChange,
+  styles,
+}: {
+  startNewCycle: boolean;
+  onChange: (value: boolean) => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const options = [
+    {
+      value: false,
+      label: "Add to current cycle",
+      description: "Save this income without changing cycle dates.",
+    },
+    {
+      value: true,
+      label: "Start a new cycle",
+      description: "Ask for confirmation after the income is saved.",
+    },
+  ];
+
+  return (
+    <View style={styles.cycleChoiceGroup}>
+      <Text style={styles.sectionLabel}>CYCLE</Text>
+      {options.map((option) => {
+        const selected = startNewCycle === option.value;
+        return (
+          <Pressable
+            key={String(option.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            onPress={() => onChange(option.value)}
+            style={({ pressed }) => [
+              styles.cycleChoice,
+              selected && styles.selectedCycleChoice,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.cycleChoiceLabel,
+                selected && styles.selectedCycleChoiceLabel,
+              ]}
+            >
+              {option.label}
+            </Text>
+            <Text style={styles.cycleChoiceDescription}>
+              {option.description}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
@@ -832,6 +911,32 @@ function createStyles(colors: ThemeColors) {
     },
     amountIntro: { gap: 4, marginTop: 4 },
     amountHint: { color: colors.textSecondary, fontSize: 13 },
+    cycleChoiceGroup: { gap: 8 },
+    cycleChoice: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      minHeight: 64,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    selectedCycleChoice: {
+      backgroundColor: colors.primarySurface,
+      borderColor: colors.primary,
+    },
+    cycleChoiceLabel: {
+      color: colors.textPrimary,
+      fontSize: 15,
+      fontWeight: "700",
+    },
+    selectedCycleChoiceLabel: { color: colors.primary },
+    cycleChoiceDescription: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+      marginTop: 3,
+    },
     amountInput: {
       fontSize: 30,
       fontWeight: "800",

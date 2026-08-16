@@ -234,6 +234,10 @@ export function validateCycleCandidate(input: {
     return 'A financial cycle cannot start from a future income date.';
   }
 
+  if (periods.some((period) => dateOnly(period.start_date) > candidateDate)) {
+    return "A newer financial cycle already exists, so this income can't be used as a cycle start.";
+  }
+
   const activePeriod = periods.find((period) => period.status === 'ACTIVE');
   const assignedPeriod = periods.find(
     (period) => Number(period.id) === Number(assignedPeriodId),
