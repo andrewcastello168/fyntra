@@ -1,6 +1,7 @@
 import type { ChangeEvent } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "@/src/theme";
+import { normalizeDateOnly } from "@/src/utils/date";
 
 export function DateField({
   label,
@@ -22,9 +23,10 @@ export function DateField({
       <input
         aria-label={label}
         disabled={disabled}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange(event.target.value)
-        }
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          const normalized = normalizeDateOnly(event.target.value);
+          if (normalized) onChange(normalized);
+        }}
         style={{
           backgroundColor: colors.surface,
           border: `1px solid ${colors.border}`,

@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiFetch, getStoredAccessToken } from "@/src/api/client";
 import {
@@ -36,6 +36,7 @@ import {
   transactionColor,
   transactionLabel,
 } from "@/src/utils/format";
+import { normalizeDateOnly } from "@/src/utils/date";
 
 const filters: { key: TransactionType | "ALL"; label: string }[] = [
   { key: "ALL", label: "All" },
@@ -66,6 +67,22 @@ export default function TransactionsScreen() {
   const [detailLoading, setDetailLoading] = useState(false);
   const hasLoaded = useRef(false);
   const openedTransactionId = useRef<number | null>(null);
+
+  const clearEditState = useCallback(() => {
+    setSelected(null);
+    setEditAmount("");
+    setEditAccountId(null);
+    setEditDate("");
+    setEditCategory("");
+    setEditNote("");
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    clearEditState();
+    if (transactionId !== undefined) {
+      router.replace("/transactions" as never);
+    }
+  }, [clearEditState, transactionId]);
 
   const transactions = useMemo(
     () => filter === "ALL"
@@ -114,11 +131,16 @@ export default function TransactionsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!hasLoaded.current) void loadTransactions();
-    }, [loadTransactions]),
+      void loadTransactions(hasLoaded.current);
+      return clearEditState;
+    }, [clearEditState, loadTransactions]),
   );
 
   useEffect(() => {
+    if (transactionId === undefined) {
+      openedTransactionId.current = null;
+      return;
+    }
     const id = Number(transactionId);
     if (
       !Number.isInteger(id) ||
@@ -208,7 +230,7 @@ export default function TransactionsScreen() {
       !editAccountId ||
       !editAmount ||
       Number(editAmount) <= 0 ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(editDate)
+      !normalizeDateOnly(editDate)
     ) {
       Alert.alert(
         "Check your entries",
@@ -216,6 +238,8 @@ export default function TransactionsScreen() {
       );
       return;
     }
+    const normalizedEditDate = normalizeDateOnly(editDate);
+    if (!normalizedEditDate) return;
     setSaving(true);
     try {
       const token = await getStoredAccessToken();
@@ -227,7 +251,7 @@ export default function TransactionsScreen() {
           body: JSON.stringify({
             accountId: editAccountId,
             amount: Number(editAmount),
-            transactionDate: editDate,
+            transactionDate: normalizedEditDate,
             category: editCategory.trim() || null,
             note: editNote.trim() || null,
           }),
@@ -235,12 +259,7 @@ export default function TransactionsScreen() {
         token,
       );
       await loadTransactions(true);
-      const detail = await apiFetch<TransactionResponse>(
-        `/transactions/${selected.id}`,
-        {},
-        token,
-      );
-      populateEdit(detail.data);
+      closeEditor();
       Alert.alert("Transaction updated", "Your changes were saved.");
     } catch (updateError) {
       Alert.alert(
@@ -477,7 +496,7 @@ export default function TransactionsScreen() {
         animationType="slide"
         transparent
         onRequestClose={() => {
-          if (!saving && !startingCycle) setSelected(null);
+          if (!saving && !startingCycle) closeEditor();
         }}
       >
         <View style={styles.modalBackdrop}>
@@ -496,7 +515,7 @@ export default function TransactionsScreen() {
                 accessibilityState={{ disabled: saving || startingCycle }}
                 disabled={saving || startingCycle}
                 hitSlop={8}
-                onPress={() => setSelected(null)}
+                onPress={closeEditor}
               >
                 <Text style={styles.close}>Close</Text>
               </Pressable>

@@ -8,8 +8,10 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { TransactionType } from './enums/transaction-type.enum';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
+type DatabaseId = number | string;
+
 interface AccountRow {
-  id: number;
+  id: DatabaseId;
   user_id: string;
   account_name: string;
   account_type: string;
@@ -20,7 +22,7 @@ interface AccountRow {
 }
 
 interface BudgetPeriod {
-  id: number;
+  id: DatabaseId;
   user_id: string;
   start_date: string | Date;
   end_date: string | Date;
@@ -28,16 +30,16 @@ interface BudgetPeriod {
   status: string;
   created_at: Date;
   updated_at: Date | null;
-  source_transaction_id: number | null;
+  source_transaction_id: DatabaseId | null;
 }
 
 interface TransactionRow {
-  id: number;
+  id: DatabaseId;
   user_id: string;
-  account_id: number;
-  budget_period_id: number | null;
+  account_id: DatabaseId;
+  budget_period_id: DatabaseId | null;
   transaction_type: TransactionType;
-  destination_account_id: number | null;
+  destination_account_id: DatabaseId | null;
   amount: number;
   transaction_date: string | Date;
   category: string | null;
@@ -98,6 +100,23 @@ type TransactionListRow = {
   updatedAt: Date | string;
   cycleSourcePeriodId: string | number | null;
 };
+
+function normalizeDatabaseId(value: DatabaseId, label: string): number {
+  const normalized = Number(value);
+
+  if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+    throw new BadRequestException(`${label} tidak valid.`);
+  }
+
+  return normalized;
+}
+
+function normalizeNullableDatabaseId(
+  value: DatabaseId | null,
+  label: string,
+): number | null {
+  return value === null ? null : normalizeDatabaseId(value, label);
+}
 
 @Injectable()
 export class TransactionsService {
@@ -405,7 +424,7 @@ export class TransactionsService {
 
         data: {
           transaction: {
-            id: newTransaction.id,
+            id: normalizeDatabaseId(newTransaction.id, 'Transaction ID'),
             transactionType: newTransaction.transaction_type,
             amount: Number(newTransaction.amount),
             transactionDate: this.formatDateOnly(
@@ -414,20 +433,29 @@ export class TransactionsService {
             category: newTransaction.category,
             note: newTransaction.note,
 
-            sourceAccountId: newTransaction.account_id,
+            sourceAccountId: normalizeDatabaseId(
+              newTransaction.account_id,
+              'Account ID',
+            ),
 
-            destinationAccountId: newTransaction.destination_account_id,
+            destinationAccountId: normalizeNullableDatabaseId(
+              newTransaction.destination_account_id,
+              'Destination account ID',
+            ),
           },
 
           account: {
-            id: updatedAccount.id,
+            id: normalizeDatabaseId(updatedAccount.id, 'Account ID'),
             accountName: updatedAccount.account_name,
             currentBalance: Number(updatedAccount.current_balance),
           },
 
           destinationAccount: updatedDestinationAccount
             ? {
-                id: updatedDestinationAccount.id,
+                id: normalizeDatabaseId(
+                  updatedDestinationAccount.id,
+                  'Destination account ID',
+                ),
                 accountName: updatedDestinationAccount.account_name,
                 currentBalance: Number(
                   updatedDestinationAccount.current_balance,
@@ -437,7 +465,7 @@ export class TransactionsService {
 
           budgetPeriod: activePeriod
             ? {
-                id: activePeriod.id,
+                id: normalizeDatabaseId(activePeriod.id, 'Budget period ID'),
                 startDate: activePeriod.start_date,
                 endDate: activePeriod.end_date,
                 savingPercentage: Number(activePeriod.saving_percentage),
@@ -568,27 +596,38 @@ export class TransactionsService {
       message: 'Daftar transaksi berhasil diambil.',
       data: transactions.map((transaction) => ({
         ...transaction,
-        id: Number(transaction.id),
+        id: normalizeDatabaseId(transaction.id, 'Transaction ID'),
 
         accountId:
-          transaction.accountId === null ? null : Number(transaction.accountId),
+          transaction.accountId === null
+            ? null
+            : normalizeDatabaseId(transaction.accountId, 'Account ID'),
 
         destinationAccountId:
           transaction.destinationAccountId === null
             ? null
-            : Number(transaction.destinationAccountId),
+            : normalizeDatabaseId(
+                transaction.destinationAccountId,
+                'Destination account ID',
+              ),
 
         budgetPeriodId:
           transaction.budgetPeriodId === null
             ? null
-            : Number(transaction.budgetPeriodId),
+            : normalizeDatabaseId(
+                transaction.budgetPeriodId,
+                'Budget period ID',
+              ),
 
         amount: Number(transaction.amount),
         transactionDate: this.formatDateOnly(transaction.transactionDate),
         cycleSourcePeriodId:
           transaction.cycleSourcePeriodId === null
             ? null
-            : Number(transaction.cycleSourcePeriodId),
+            : normalizeDatabaseId(
+                transaction.cycleSourcePeriodId,
+                'Cycle source period ID',
+              ),
       })),
       pagination: {
         page,
@@ -686,13 +725,20 @@ export class TransactionsService {
       message: 'Detail transaksi berhasil diambil.',
       data: {
         ...transaction,
-        id: Number(transaction.id),
-        accountId: Number(transaction.accountId),
+        id: normalizeDatabaseId(transaction.id, 'Transaction ID'),
+        accountId: normalizeDatabaseId(transaction.accountId, 'Account ID'),
+        destinationAccountId: normalizeNullableDatabaseId(
+          transaction.destinationAccountId,
+          'Destination account ID',
+        ),
         currentBalance: Number(transaction.currentBalance),
         budgetPeriodId:
           transaction.budgetPeriodId === null
             ? null
-            : Number(transaction.budgetPeriodId),
+            : normalizeDatabaseId(
+                transaction.budgetPeriodId,
+                'Budget period ID',
+              ),
         savingPercentage:
           transaction.savingPercentage === null
             ? null
@@ -702,7 +748,10 @@ export class TransactionsService {
         cycleSourcePeriodId:
           transaction.cycleSourcePeriodId === null
             ? null
-            : Number(transaction.cycleSourcePeriodId),
+            : normalizeDatabaseId(
+                transaction.cycleSourcePeriodId,
+                'Cycle source period ID',
+              ),
         cycleAction,
       },
     };
@@ -721,7 +770,12 @@ export class TransactionsService {
       return {
         status: 'ALREADY_SOURCE',
         message:
-          activePeriod?.id === Number(transaction.cycleSourcePeriodId)
+          activePeriod &&
+          normalizeDatabaseId(activePeriod.id, 'Budget period ID') ===
+            normalizeDatabaseId(
+              transaction.cycleSourcePeriodId,
+              'Cycle source period ID',
+            )
             ? 'Starts current cycle'
             : 'Starts a financial cycle',
       };
@@ -802,8 +856,15 @@ export class TransactionsService {
         );
       }
 
-      const newAccountId =
-        updateTransactionDto.accountId ?? existingTransaction.account_id;
+      const oldAccountId = normalizeDatabaseId(
+        existingTransaction.account_id,
+        'Account ID',
+      );
+
+      const newAccountId = normalizeDatabaseId(
+        updateTransactionDto.accountId ?? existingTransaction.account_id,
+        'Account ID',
+      );
 
       const newTransactionType =
         updateTransactionDto.transactionType ??
@@ -879,9 +940,9 @@ export class TransactionsService {
        *
        * Kalau accountId tidak berubah, hanya satu account yang dikunci.
        */
-      const accountIds = Array.from(
-        new Set([existingTransaction.account_id, newAccountId]),
-      ).sort((firstId, secondId) => firstId - secondId);
+      const accountIds = Array.from(new Set([oldAccountId, newAccountId])).sort(
+        (firstId, secondId) => firstId - secondId,
+      );
 
       const accounts = await trx<AccountRow>('accounts')
         .where('user_id', userId)
@@ -889,13 +950,15 @@ export class TransactionsService {
         .orderBy('id')
         .forUpdate();
 
-      const oldAccount = accounts.find(
-        (account) => Number(account.id) === existingTransaction.account_id,
+      const accountsById = new Map(
+        accounts.map((account) => [
+          normalizeDatabaseId(account.id, 'Account ID'),
+          account,
+        ]),
       );
 
-      const targetAccount = accounts.find(
-        (account) => Number(account.id) === newAccountId,
-      );
+      const oldAccount = accountsById.get(oldAccountId);
+      const targetAccount = accountsById.get(newAccountId);
 
       if (!oldAccount) {
         throw new NotFoundException(
@@ -915,10 +978,7 @@ export class TransactionsService {
        * Akun lama yang sudah nonaktif masih diperbolehkan agar transaksi
        * lamanya tetap dapat dikoreksi.
        */
-      if (
-        newAccountId !== existingTransaction.account_id &&
-        !targetAccount.is_active
-      ) {
+      if (newAccountId !== oldAccountId && !targetAccount.is_active) {
         throw new BadRequestException('Akun tujuan sudah tidak aktif.');
       }
 
@@ -945,11 +1005,11 @@ export class TransactionsService {
        * EXPENSE lama -> saldo ditambah kembali
        */
       if (existingTransaction.transaction_type === TransactionType.INCOME) {
-        addBalanceDelta(existingTransaction.account_id, -oldAmount);
+        addBalanceDelta(oldAccountId, -oldAmount);
       }
 
       if (existingTransaction.transaction_type === TransactionType.EXPENSE) {
-        addBalanceDelta(existingTransaction.account_id, oldAmount);
+        addBalanceDelta(oldAccountId, oldAmount);
       }
 
       /*
@@ -970,9 +1030,7 @@ export class TransactionsService {
        * Pastikan saldo akhir setiap account tidak menjadi negatif.
        */
       for (const [affectedAccountId, balanceDelta] of balanceDeltas) {
-        const account = accounts.find(
-          (item) => Number(item.id) === affectedAccountId,
-        );
+        const account = accountsById.get(affectedAccountId);
 
         if (!account) {
           throw new NotFoundException(
@@ -1018,7 +1076,9 @@ export class TransactionsService {
         })
         .update({
           account_id: newAccountId,
-          budget_period_id: targetPeriod?.id ?? null,
+          budget_period_id: targetPeriod
+            ? normalizeDatabaseId(targetPeriod.id, 'Budget period ID')
+            : null,
           transaction_type: newTransactionType,
           amount: newAmount,
           transaction_date: newTransactionDate,
@@ -1037,12 +1097,18 @@ export class TransactionsService {
         message: 'Transaksi berhasil diperbarui.',
         data: {
           transaction: {
-            id: Number(updatedTransaction.id),
-            accountId: Number(updatedTransaction.account_id),
+            id: normalizeDatabaseId(updatedTransaction.id, 'Transaction ID'),
+            accountId: normalizeDatabaseId(
+              updatedTransaction.account_id,
+              'Account ID',
+            ),
             budgetPeriodId:
               updatedTransaction.budget_period_id === null
                 ? null
-                : Number(updatedTransaction.budget_period_id),
+                : normalizeDatabaseId(
+                    updatedTransaction.budget_period_id,
+                    'Budget period ID',
+                  ),
             transactionType: updatedTransaction.transaction_type,
             amount: Number(updatedTransaction.amount),
             transactionDate: this.formatDateOnly(
@@ -1052,14 +1118,14 @@ export class TransactionsService {
             note: updatedTransaction.note,
           },
           affectedAccounts: updatedAccounts.map((account) => ({
-            id: Number(account.id),
+            id: normalizeDatabaseId(account.id, 'Account ID'),
             accountName: account.account_name,
             currentBalance: Number(account.current_balance),
             isActive: account.is_active,
           })),
           budgetPeriod: targetPeriod
             ? {
-                id: Number(targetPeriod.id),
+                id: normalizeDatabaseId(targetPeriod.id, 'Budget period ID'),
                 startDate: targetPeriod.start_date,
                 endDate: targetPeriod.end_date,
                 savingPercentage: Number(targetPeriod.saving_percentage),
@@ -1098,6 +1164,11 @@ export class TransactionsService {
         );
       }
 
+      const accountId = normalizeDatabaseId(
+        existingTransaction.account_id,
+        'Account ID',
+      );
+
       const sourceCycle = await trx<BudgetPeriod>('budget_periods')
         .where({ user_id: userId, source_transaction_id: id })
         .forUpdate()
@@ -1114,7 +1185,7 @@ export class TransactionsService {
        */
       const account = await trx<AccountRow>('accounts')
         .where({
-          id: existingTransaction.account_id,
+          id: accountId,
           user_id: userId,
         })
         .forUpdate()
@@ -1150,7 +1221,7 @@ export class TransactionsService {
 
       await trx('accounts')
         .where({
-          id: account.id,
+          id: accountId,
           user_id: userId,
         })
         .update({
@@ -1168,7 +1239,7 @@ export class TransactionsService {
 
       const updatedAccount = await trx<AccountRow>('accounts')
         .where({
-          id: account.id,
+          id: accountId,
           user_id: userId,
         })
         .first();
@@ -1183,7 +1254,7 @@ export class TransactionsService {
         message: 'Transaksi berhasil dihapus.',
         data: {
           transaction: {
-            id: Number(deletedTransaction.id),
+            id: normalizeDatabaseId(deletedTransaction.id, 'Transaction ID'),
             transactionType: deletedTransaction.transaction_type,
             amount: Number(deletedTransaction.amount),
             transactionDate: this.formatDateOnly(
@@ -1193,7 +1264,7 @@ export class TransactionsService {
             note: deletedTransaction.note,
           },
           account: {
-            id: Number(updatedAccount.id),
+            id: normalizeDatabaseId(updatedAccount.id, 'Account ID'),
             accountName: updatedAccount.account_name,
             currentBalance: Number(updatedAccount.current_balance),
           },
@@ -1206,5 +1277,7 @@ export class TransactionsService {
 export function getBudgetPeriodIdForNewTransaction(
   activePeriod: Pick<BudgetPeriod, 'id'> | undefined,
 ): number | null {
-  return activePeriod?.id ?? null;
+  return activePeriod
+    ? normalizeDatabaseId(activePeriod.id, 'Budget period ID')
+    : null;
 }

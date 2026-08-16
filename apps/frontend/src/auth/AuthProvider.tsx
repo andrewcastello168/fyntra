@@ -13,8 +13,8 @@ import {
   apiFetch,
   clearActiveSession,
   getStoredAccessToken,
-  getStoredRefreshToken,
   saveSession,
+  setSessionInvalidHandler,
 } from "@/src/api/client";
 import {
   disableBiometricLogin,
@@ -81,25 +81,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    try {
-      const result = await apiFetch<MeResponse>("/auth/me", {}, token);
-      setUser(result.user);
-    } catch (error) {
-      const refreshToken = await getStoredRefreshToken();
-      const requiresBiometrics = await hasBiometricLogin();
-
-      if (
-        !(error instanceof ApiError) ||
-        error.status !== 401 ||
-        !refreshToken ||
-        requiresBiometrics
-      ) {
-        throw error;
-      }
-
-      const result = await refreshSession(refreshToken);
-      setUser(result.user);
-    }
+    const result = await apiFetch<MeResponse>("/auth/me", {}, token);
+    setUser(result.user);
   };
 
   const login = async (email: string, password: string) => {
@@ -246,6 +229,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setError(null);
     }
   };
+
+  useEffect(() => {
+    return setSessionInvalidHandler(async () => {
+      await disableBiometricLogin().catch(() => undefined);
+      setUser(null);
+      setError(null);
+    });
+  }, []);
 
   useEffect(() => {
     const initializeAuth = async () => {

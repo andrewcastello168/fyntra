@@ -13,25 +13,13 @@ import {
 } from "react-native";
 import { Button } from "@/src/components/Button";
 import { useTheme } from "@/src/theme";
+import { dateFromDateOnly, dateOnlyFromDate } from "@/src/utils/date";
 
 const friendlyDateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   year: "numeric",
 });
-
-export function dateOnlyFromDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function dateFromDateOnly(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
-}
 
 function friendlyDate(value: string) {
   return friendlyDateFormatter.format(dateFromDateOnly(value));

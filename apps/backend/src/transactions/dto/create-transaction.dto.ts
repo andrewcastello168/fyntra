@@ -9,6 +9,7 @@ import {
   IsPositive,
   IsString,
   MaxLength,
+  Matches,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -43,7 +44,10 @@ export class CreateTransactionDto {
   @Type(() => Number)
   amount!: number;
 
-  @IsDateString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'transactionDate must use YYYY-MM-DD.',
+  })
+  @IsDateString({ strict: true, strictSeparator: true })
   transactionDate!: string;
 
   @IsOptional()

@@ -34,6 +34,7 @@ import { DateField } from "@/src/components/DateField";
 import { SelectField, SelectOption } from "@/src/components/SelectField";
 import { ThemeColors, useTheme } from "@/src/theme";
 import { errorMessage, formatCurrency } from "@/src/utils/format";
+import { normalizeDateOnly } from "@/src/utils/date";
 import {
   maskBalance,
   useBalanceVisibility,
@@ -266,7 +267,7 @@ export default function CreateScreen() {
       return "Source and destination accounts must be different.";
     if (!amount || Number(amount) <= 0)
       return "Amount must be greater than zero.";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate))
+    if (!normalizeDateOnly(transactionDate))
       return "Use YYYY-MM-DD for the date.";
     return null;
   }
@@ -324,6 +325,11 @@ export default function CreateScreen() {
     startNewCycle: boolean;
   }) {
     if (!input.accountId || submitting) return;
+    const normalizedTransactionDate = normalizeDateOnly(input.transactionDate);
+    if (!normalizedTransactionDate) {
+      Alert.alert("Check your entries", "Choose a valid transaction date.");
+      return;
+    }
 
     setSubmitting(true);
     setSaveStatus(`Creating ${input.transactionType.toLowerCase()}...`);
@@ -342,7 +348,7 @@ export default function CreateScreen() {
                 : undefined,
             transactionType: input.transactionType,
             amount: input.amount,
-            transactionDate: input.transactionDate,
+            transactionDate: normalizedTransactionDate,
             category: input.category || undefined,
             note: input.note || undefined,
           }),
@@ -353,10 +359,6 @@ export default function CreateScreen() {
       setSaveStatus(
         `${transactionLabelForStatus(saved.transactionType)} added`,
       );
-      setAmount("");
-      setCategory("");
-      setNote("");
-      setStartNewCycle(false);
 
       if (saved.transactionType === "INCOME" && input.startNewCycle) {
         const detail = await apiFetch<{ data: Transaction }>(
@@ -367,10 +369,10 @@ export default function CreateScreen() {
         if (detail.data.cycleAction?.status === "AVAILABLE") {
           promptForCycle(detail.data);
         } else {
-          openSavedTransaction(Number(saved.id));
+          finishCreate();
         }
       } else {
-        openSavedTransaction(Number(saved.id));
+        finishCreate();
       }
     } catch (saveError) {
       setSaveStatus(null);
@@ -403,7 +405,7 @@ export default function CreateScreen() {
       {
         text: "Not Now",
         style: "cancel",
-        onPress: () => openSavedTransaction(income.id),
+        onPress: finishCreate,
       },
       {
         text: "Start New Cycle",
@@ -428,15 +430,15 @@ export default function CreateScreen() {
         },
         token,
       );
-      openSavedTransaction(income.id);
+      finishCreate();
     } catch (cycleError) {
       Alert.alert(
         "Income saved",
         errorMessage(cycleError, "Failed to start the financial cycle."),
         [
           {
-            text: "Open Income",
-            onPress: () => openSavedTransaction(income.id),
+            text: "Done",
+            onPress: finishCreate,
           },
         ],
       );
@@ -445,14 +447,28 @@ export default function CreateScreen() {
     }
   }
 
-  function openSavedTransaction(id: number) {
-    setSaveStatus("Opening transaction...");
+  function finishCreate() {
+    resetCreateState();
     requestAnimationFrame(() => {
-      router.replace({
-        pathname: "/transactions",
-        params: { transactionId: String(id) },
-      } as never);
+      router.replace("/transactions" as never);
     });
+  }
+
+  function resetCreateState() {
+    setSelectedType("INCOME");
+    setAccountId(accounts[0]?.id ?? null);
+    setDestinationAccountId(accounts[1]?.id ?? null);
+    setAmount("");
+    setTransactionDate(currentLocalDate());
+    setCategory("");
+    setNote("");
+    setStartNewCycle(false);
+    setSmartInputOpen(false);
+    setSmartInputText("");
+    setSmartInputError(null);
+    setSmartInputHint(null);
+    setSmartDraft(null);
+    setSaveStatus(null);
   }
 
   if (loading) return <LoadingState label="Loading accounts..." />;
@@ -500,7 +516,7 @@ export default function CreateScreen() {
               ]}
             >
               <Text style={styles.aiSparkle}>✦</Text>
-              <Text style={styles.aiButtonText}>Ask Fyntra AI</Text>
+              <Text style={styles.aiButtonText}>Fyntra AI Assist</Text>
             </Pressable>
             <View style={styles.typeSelector}>
               {transactionTypes.map((type) => (

@@ -160,6 +160,7 @@ export class AuthService {
     } = await supabaseClients.auth.getUser(accessToken);
 
     if (error || !authUser) {
+      // await this.logout(accessToken, envService);
       throw new UnauthorizedException(
         'Token tidak valid atau sudah kedaluwarsa',
       );
