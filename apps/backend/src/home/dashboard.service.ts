@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { KnexService } from 'src/database/knex.service';
+import { KnexService } from '../database/knex.service';
 
 interface DetailTopResult {
   total_balance: string | number | null;

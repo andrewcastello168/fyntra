@@ -1,7 +1,7 @@
 import { Controller, Get, Req, Request, UseGuards } from '@nestjs/common';
-import type { AuthenticatedRequest } from 'src/auth/types/authenticated-request.type';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request.type';
 import { DashboardService } from './dashboard.service';
-import { SupabaseAuthGuard } from 'src/auth/guards/supabase-auth.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 
 @Controller('home')
 @UseGuards(SupabaseAuthGuard)

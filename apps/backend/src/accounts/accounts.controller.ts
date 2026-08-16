@@ -10,7 +10,7 @@ import {
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
-import type { AuthenticatedRequest } from 'src/auth/types/authenticated-request.type';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request.type';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @Controller('accounts')

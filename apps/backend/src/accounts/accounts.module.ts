@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AccountsController } from './accounts.controller';
 import { AccountsService } from './accounts.service';
 import { DatabaseModule } from '../database/database.module';
-import { SupabaseModule } from 'src/supabase/supabase.module';
+import { SupabaseModule } from '../supabase/supabase.module';
 
 @Module({
   imports: [SupabaseModule, DatabaseModule],

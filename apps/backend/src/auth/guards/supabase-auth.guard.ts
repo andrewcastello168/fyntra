@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type { User } from '@supabase/supabase-js';
-import { SupabaseService } from 'src/supabase/supabase.service';
-import { SupabaseMode } from 'src/supabase/supabase.config';
+import { SupabaseService } from '../../supabase/supabase.service';
+import { SupabaseMode } from '../../supabase/supabase.config';
 
 type RequestWithUser = Request & {
   user?: User;
