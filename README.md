@@ -4,7 +4,8 @@
 
 A personal finance app designed to make everyday money management clearer — from tracking transactions and accounts to understanding how much you can safely spend today.
 
-![Fyntra Home](docs/screenshots/home.png)
+<img src="docs/screenshots/home.png" alt="Fyntra Accounts" width="280" />
+<!-- ![Fyntra Home](docs/screenshots/home.png) -->
 
 ## Why Fyntra?
 
@@ -30,7 +31,8 @@ Manage multiple places where your money lives and keep their balances connected.
 - Combined total balance
 - Activate or deactivate accounts as needed
 
-![Fyntra Accounts](docs/screenshots/accounts.png)
+<img src="docs/screenshots/accounts.png" alt="Fyntra Transactions" width="280" />
+<!-- ![Fyntra Accounts](docs/screenshots/accounts.png) -->
 
 ### 💸 Transactions
 
@@ -43,7 +45,8 @@ Record everyday money movement in one place.
 - Filtering by transaction type
 - Edit and delete supported transactions
 
-![Fyntra Transactions](docs/screenshots/transactions.png)
+<img src="docs/screenshots/transactions.png" alt="Fyntra Transactions" width="280" />
+<!-- ![Fyntra Transactions](docs/screenshots/transactions.png) -->
 
 ### 📊 Budget & Safe Daily Spend
 
@@ -62,7 +65,8 @@ The goal is simple: turn financial data into a number you can actually use.
 
 > **Know what you can spend today without losing track of where your money went.**
 
-![Fyntra Budget](docs/screenshots/home.png)
+<img src="docs/screenshots/home.png" alt="Fyntra Budget" width="280" />
+<!-- ![Fyntra Budget](docs/screenshots/home.png) -->
 
 ### 🤖 Fyntra AI Assist
 
@@ -92,7 +96,8 @@ Transaction draft
 
 **The AI does not save a transaction automatically.** The user reviews and explicitly submits the final transaction.
 
-![Fyntra AI Assist](docs/screenshots/create-transaction.png)
+<img src="docs/screenshots/create-transaction.png" alt="Fyntra AI Assist" width="280" />
+<!-- ![Fyntra AI Assist](docs/screenshots/create-transaction.png) -->
 
 ### 🔐 Privacy & Personalization
 
@@ -105,7 +110,8 @@ Because Fyntra deals with personal financial information, privacy is part of the
 - System, light, and dark appearance modes
 - Currency preferences
 
-![Fyntra Settings](docs/screenshots/profile.png)
+<img src="docs/screenshots/profile.png" alt="Fyntra Settings" width="280" />
+<!-- ![Fyntra Settings](docs/screenshots/profile.png) -->
 
 ---
 
@@ -180,16 +186,16 @@ The mobile client handles the experience, while the backend is responsible for a
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Mobile | React Native, Expo, Expo Router, TypeScript |
-| Backend | NestJS, Node.js, TypeScript |
-| Database | PostgreSQL, Supabase |
-| Authentication | Supabase Auth |
-| Data Access | Knex |
-| AI | AI Gateway, OpenRouter, LLMs |
-| Testing | Jest |
-| Code Quality | ESLint, Prettier |
+| Layer          | Technology                                  |
+| -------------- | ------------------------------------------- |
+| Mobile         | React Native, Expo, Expo Router, TypeScript |
+| Backend        | NestJS, Node.js, TypeScript                 |
+| Database       | PostgreSQL, Supabase                        |
+| Authentication | Supabase Auth                               |
+| Data Access    | Knex                                        |
+| AI             | AI Gateway, OpenRouter, LLMs                |
+| Testing        | Jest                                        |
+| Code Quality   | ESLint, Prettier                            |
 
 ---
 
@@ -197,24 +203,28 @@ The mobile client handles the experience, while the backend is responsible for a
 
 ### Home
 
-![Home](docs/screenshots/home.png)
-
-### Transactions
-
-![Transactions](docs/screenshots/transactions.png)
-
-### Create Transaction
-
-![Create Transaction](docs/screenshots/create-transaction.png)
-
-### Accounts
-
-![Accounts](docs/screenshots/accounts.png)
-
-### Profile & Security
-
-![Profile](docs/screenshots/profile.png)
-
+<table>
+  <tr>
+    <td><img src="docs/screenshots/home.png" alt="Home" width="220" /></td>
+    <td><img src="docs/screenshots/transactions.png" alt="Transactions" width="220" /></td>
+    <td><img src="docs/screenshots/create-transaction.png" alt="Create Transaction" width="220" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Home</strong></td>
+    <td align="center"><strong>Transactions</strong></td>
+    <td align="center"><strong>Create Transaction</strong></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/accounts.png" alt="Accounts" width="220" /></td>
+    <td><img src="docs/screenshots/profile.png" alt="Profile & Security" width="220" /></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Accounts</strong></td>
+    <td align="center"><strong>Profile & Security</strong></td>
+    <td></td>
+  </tr>
+</table>
 ---
 
 ## 🚀 Getting Started
