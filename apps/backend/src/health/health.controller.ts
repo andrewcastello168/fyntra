@@ -15,7 +15,8 @@ export class HealthController {
   checkHealth() {
     return {
       status: 'ok',
-      message: 'Backend is running',
+      service: 'fyntra-api',
+      message: 'Service is healthy',
     };
   }
 
@@ -28,15 +29,21 @@ export class HealthController {
 
       return {
         status: 'ok',
-        database: 'connected',
-        now: result.rows[0]?.now,
+        service: 'fyntra-api',
+        database: {
+          status: 'connected',
+          now: result.rows[0]?.now,
+        },
       };
     } catch (error: unknown) {
       console.error('DB CHECK ERROR:', error);
 
       return {
         status: 'error',
-        database: 'not connected',
+        service: 'fyntra-api',
+        database: {
+          status: 'disconnected',
+        },
         message:
           error instanceof Error ? error.message : 'Unknown database error',
       };
