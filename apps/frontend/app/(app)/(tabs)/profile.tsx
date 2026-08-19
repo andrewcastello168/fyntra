@@ -4,7 +4,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text,
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/AuthProvider";
-import { getStoredRefreshToken } from "@/src/api/client";
+import { getStoredAccessToken } from "@/src/api/client";
 import { disableBiometricLogin, enableBiometricLogin, hasBiometricLogin, isBiometricAuthenticationSupported } from "@/src/auth/biometric";
 import { useBalanceVisibility } from "@/src/privacy/BalanceVisibilityProvider";
 import { ThemeColors, useTheme } from "@/src/theme";
@@ -38,13 +38,14 @@ export default function ProfileScreen() {
   async function toggleBiometric(value: boolean) {
     setBiometricBusy(true);
     try {
-      if (!value) { await disableBiometricLogin(); setBiometricEnabled(false); return; }
+      const accessToken = await getStoredAccessToken();
+      if (!accessToken) throw new Error("Your session has expired. Please sign in again.");
+      if (!value) { await disableBiometricLogin(accessToken); setBiometricEnabled(false); return; }
       if (!(await isBiometricAuthenticationSupported())) {
         Alert.alert("Biometric login unavailable", "Enroll Face ID or a fingerprint on this device first.");
         return;
       }
-      const refreshToken = await getStoredRefreshToken();
-      if (!user || !refreshToken || !(await enableBiometricLogin({ refreshToken, userId: user.id }))) throw new Error("Biometric login could not be enabled.");
+      if (!user || !(await enableBiometricLogin(user.id, accessToken))) throw new Error("Biometric login could not be enabled.");
       setBiometricEnabled(true);
     } catch (e) { Alert.alert("Biometric login", errorMessage(e, "Biometric login could not be enabled.")); }
     finally { setBiometricBusy(false); }

@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { apiFetch, getStoredAccessToken } from "@/src/api/client";
 import { Account, AccountsResponse } from "@/src/api/types";
+import { BalanceVisibilityButton } from "@/src/components/BalanceVisibilityButton";
 import { Button } from "@/src/components/Button";
 import { EmptyState } from "@/src/components/EmptyState";
 import { ErrorState } from "@/src/components/ErrorState";
@@ -20,8 +22,10 @@ import { LoadingState } from "@/src/components/LoadingState";
 import { TextInput } from "@/src/components/TextInput";
 import { ThemeColors, useTheme } from "@/src/theme";
 import { errorMessage, formatCurrency } from "@/src/utils/format";
-import { BalanceVisibilityButton } from "@/src/components/BalanceVisibilityButton";
-import { maskBalance, useBalanceVisibility } from "@/src/privacy/BalanceVisibilityProvider";
+import {
+  maskBalance,
+  useBalanceVisibility,
+} from "@/src/privacy/BalanceVisibilityProvider";
 
 const accountTypes = [
   { key: "BANK", label: "Bank" },
@@ -34,24 +38,37 @@ export default function AccountsScreen() {
   const { colors } = useTheme();
   const { isBalanceVisible } = useBalanceVisibility();
   const styles = createStyles(colors);
+
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [showCreate, setShowCreate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("BANK");
   const [initialBalance, setInitialBalance] = useState("0");
 
   const loadAccounts = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     setError(null);
+
     try {
       const token = await getStoredAccessToken();
-      if (!token) throw new Error("Login session not found.");
+
+      if (!token) {
+        throw new Error("Login session not found.");
+      }
+
       const result = await apiFetch<AccountsResponse>("/accounts", {}, token);
+
       setAccounts(result.data);
     } catch (loadError) {
       setError(errorMessage(loadError, "Accounts could not be loaded."));
@@ -72,14 +89,21 @@ export default function AccountsScreen() {
       Alert.alert("Check your entries", "Account name is required.");
       return;
     }
+
     if (Number(initialBalance) < 0) {
       Alert.alert("Check your entries", "Starting balance cannot be negative.");
       return;
     }
+
     setSubmitting(true);
+
     try {
       const token = await getStoredAccessToken();
-      if (!token) throw new Error("Login session not found.");
+
+      if (!token) {
+        throw new Error("Login session not found.");
+      }
+
       await apiFetch(
         "/accounts",
         {
@@ -92,9 +116,10 @@ export default function AccountsScreen() {
         },
         token,
       );
+
       setShowCreate(false);
-      setAccountName("");
-      setInitialBalance("0");
+      resetCreateForm();
+
       await loadAccounts(true);
     } catch (createError) {
       Alert.alert(
@@ -106,12 +131,21 @@ export default function AccountsScreen() {
     }
   }
 
+  function resetCreateForm() {
+    setAccountName("");
+    setAccountType("BANK");
+    setInitialBalance("0");
+  }
+
   function deactivateAccount(account: Account) {
     Alert.alert(
       "Deactivate account?",
       `${account.accountName} will no longer be available for new transactions.`,
       [
-        { text: "Cancel", style: "cancel" },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
         {
           text: "Deactivate",
           style: "destructive",
@@ -124,7 +158,11 @@ export default function AccountsScreen() {
   async function confirmDeactivate(accountId: number) {
     try {
       const token = await getStoredAccessToken();
-      if (!token) throw new Error("Login session not found.");
+
+      if (!token) {
+        throw new Error("Login session not found.");
+      }
+
       await apiFetch(
         "/accounts",
         {
@@ -133,6 +171,7 @@ export default function AccountsScreen() {
         },
         token,
       );
+
       await loadAccounts(true);
     } catch (deleteError) {
       Alert.alert(
@@ -142,36 +181,63 @@ export default function AccountsScreen() {
     }
   }
 
-  if (loading) return <LoadingState label="Loading accounts..." />;
+  function openCreateModal() {
+    resetCreateForm();
+    setShowCreate(true);
+  }
 
-  const totalBalance = accounts.reduce((sum, account) => sum + account.currentBalance, 0);
+  function closeCreateModal() {
+    if (submitting) return;
+    setShowCreate(false);
+  }
+
+  if (loading) {
+    return <LoadingState label="Loading accounts..." />;
+  }
+
+  const totalBalance = accounts.reduce(
+    (sum, account) => sum + account.currentBalance,
+    0,
+  );
 
   return (
     <>
       <View style={styles.screen}>
+        {/* HEADER */}
         <View
-          style={[styles.header, { paddingTop: insets.top + 12 }]}
+          style={[
+            styles.header,
+            {
+              paddingTop: insets.top + 12,
+            },
+          ]}
         >
           <View style={styles.headerCopy}>
             <Text style={styles.title}>Accounts</Text>
-            <Text style={styles.subtitle}>
-              Manage where you keep your money.
-            </Text>
+
+            <Text style={styles.subtitle}>Where you keep your money.</Text>
           </View>
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add account"
-            onPress={() => setShowCreate(true)}
-            style={styles.addButton}
+            onPress={openCreateModal}
+            style={({ pressed }) => [
+              styles.addButton,
+              pressed && styles.pressed,
+            ]}
           >
             <Text style={styles.addLabel}>+</Text>
           </Pressable>
         </View>
+
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
             styles.content,
-            { paddingBottom: 40 + insets.bottom },
+            {
+              paddingBottom: 40 + insets.bottom,
+            },
           ]}
           refreshControl={
             <RefreshControl
@@ -180,103 +246,187 @@ export default function AccountsScreen() {
             />
           }
         >
-        {error ? <ErrorState message={error} /> : null}
-        <View style={styles.totalBalance}>
-          <View style={styles.totalCopy}><Text style={styles.totalLabel}>TOTAL BALANCE</Text><Text style={styles.totalValue}>{isBalanceVisible ? formatCurrency(totalBalance) : maskBalance()}</Text></View>
-          <BalanceVisibilityButton />
-        </View>
-        {accounts.length ? (
-          <View style={styles.list}>
-            {accounts.map((account, index) => (
-              <Pressable key={account.id} style={({ pressed }) => [styles.accountRow, pressed && styles.pressed]} accessibilityRole="button" onPress={() => router.push(`/account/${account.id}` as never)} accessibilityLabel={`${account.accountName}, balance ${isBalanceVisible ? formatCurrency(account.currentBalance) : "hidden"}`}>
-                <View style={[styles.identityRail, { backgroundColor: index % 2 ? colors.transfer : colors.primary }]} />
-                <View style={styles.accountMain}>
-                  <View style={styles.accountTopline}>
-                    <View style={styles.accountCopy}>
-                      <Text style={styles.accountName}>{account.accountName}</Text>
-                      <Text style={styles.accountType}>{accountTypeLabel(account.accountType)}</Text>
-                    </View>
-                    <View style={styles.balanceLine}>
-                      <Text style={styles.balance}>{isBalanceVisible ? formatCurrency(account.currentBalance) : maskBalance()}</Text>
-                      <BalanceVisibilityButton />
-                    </View>
-                  </View>
-                  <View style={styles.accountFooter}>
-                    <Text style={styles.status}>{account.isActive ? "Available for transactions" : "Inactive"}</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Deactivate ${account.accountName}`} onPress={(event) => { event.stopPropagation(); deactivateAccount(account); }} hitSlop={8}>
-                      <Text style={styles.deactivate}>Deactivate</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </Pressable>
-            ))}
+          {/* ERROR */}
+          {error ? <ErrorState message={error} /> : null}
+
+          {/* TOTAL BALANCE */}
+          <View style={styles.totalBalance}>
+            <View style={styles.totalCopy}>
+              <Text style={styles.totalLabel}>TOTAL BALANCE</Text>
+
+              <Text style={styles.totalValue}>
+                {isBalanceVisible
+                  ? formatCurrency(totalBalance)
+                  : maskBalance()}
+              </Text>
+            </View>
+
+            <BalanceVisibilityButton />
           </View>
-        ) : (
-          <EmptyState
-            title="No accounts yet"
-            message="Add your first account to start tracking your finances."
-          />
-        )}
+
+          {/* ACCOUNT LIST */}
+          {accounts.length ? (
+            <View style={styles.list}>
+              {accounts.map((account) => (
+                <Pressable
+                  key={account.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${account.accountName}, balance ${
+                    isBalanceVisible
+                      ? formatCurrency(account.currentBalance)
+                      : "hidden"
+                  }`}
+                  onPress={() => router.push(`/account/${account.id}` as never)}
+                  style={({ pressed }) => [
+                    styles.accountRow,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  {/* ACCOUNT ICON */}
+                  <View style={styles.accountIcon}>
+                    <Text style={styles.accountIconText}>
+                      {account.accountName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+
+                  {/* ACCOUNT CONTENT */}
+                  <View style={styles.accountMain}>
+                    <View style={styles.accountTopline}>
+                      <View style={styles.accountCopy}>
+                        <Text style={styles.accountName} numberOfLines={1}>
+                          {account.accountName}
+                        </Text>
+
+                        <Text style={styles.accountType}>
+                          {accountTypeLabel(account.accountType)}
+                          {"  ·  "}
+                          {account.isActive ? "Available" : "Inactive"}
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={styles.balance}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.75}
+                      >
+                        {isBalanceVisible
+                          ? formatCurrency(account.currentBalance)
+                          : maskBalance()}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <EmptyState
+              title="No accounts yet"
+              message="Add your first account to start tracking your finances."
+            />
+          )}
         </ScrollView>
       </View>
 
+      {/* CREATE ACCOUNT MODAL */}
       <Modal
         visible={showCreate}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowCreate(false)}
+        onRequestClose={closeCreateModal}
       >
         <View style={styles.modalBackdrop}>
           <ScrollView
             contentContainerStyle={[
               styles.modalCard,
-              { paddingBottom: 40 + insets.bottom },
+              {
+                paddingBottom: 40 + insets.bottom,
+              },
             ]}
             keyboardShouldPersistTaps="handled"
           >
+            {/* MODAL HEADER */}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add account</Text>
-              <Pressable onPress={() => setShowCreate(false)}>
-                <Text style={styles.close}>Close</Text>
+              <View style={styles.modalTitleGroup}>
+                <Text style={styles.modalTitle}>Add account</Text>
+
+                <Text style={styles.modalSubtitle}>
+                  Add a place where you keep your money.
+                </Text>
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                disabled={submitting}
+                onPress={closeCreateModal}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  pressed && styles.pressed,
+                  submitting && styles.disabled,
+                ]}
+              >
+                <Text style={styles.close}>✕</Text>
               </Pressable>
             </View>
+
+            {/* ACCOUNT NAME */}
             <TextInput
               label="Account name"
               value={accountName}
               onChangeText={setAccountName}
-              placeholder="Example: Checking account"
+              placeholder="Example: BCA"
+              editable={!submitting}
             />
+
+            {/* ACCOUNT TYPE */}
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Account type</Text>
+
               <View style={styles.typeRow}>
-                {accountTypes.map((type) => (
-                  <Pressable
-                    key={type.key}
-                    onPress={() => setAccountType(type.key)}
-                    style={[
-                      styles.typeChip,
-                      accountType === type.key && styles.selectedChip,
-                    ]}
-                  >
-                    <Text
+                {accountTypes.map((type) => {
+                  const selected = accountType === type.key;
+
+                  return (
+                    <Pressable
+                      key={type.key}
+                      accessibilityRole="radio"
+                      accessibilityState={{
+                        selected,
+                      }}
+                      disabled={submitting}
+                      onPress={() => setAccountType(type.key)}
                       style={[
-                        styles.typeChipText,
-                        accountType === type.key && styles.selectedChipText,
+                        styles.typeOption,
+                        selected && styles.selectedTypeOption,
                       ]}
                     >
-                      {type.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <Text
+                        style={[
+                          styles.typeOptionText,
+                          selected && styles.selectedTypeOptionText,
+                        ]}
+                      >
+                        {type.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
+
+            {/* STARTING BALANCE */}
             <TextInput
               label="Starting balance"
               value={initialBalance}
               onChangeText={setInitialBalance}
               keyboardType="decimal-pad"
               placeholder="0"
+              editable={!submitting}
             />
+
+            {/* SAVE */}
             <Button
               label="Save account"
               onPress={() => void createAccount()}
@@ -295,85 +445,293 @@ function accountTypeLabel(type: string) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    scroll: { flex: 1, backgroundColor: colors.background },
-    content: { paddingBottom: 40, paddingHorizontal: 20, paddingTop: 9, gap: 18 },
-    header: { alignItems: "center", backgroundColor: colors.background, flexDirection: "row", gap: 12, paddingBottom: 9, paddingHorizontal: 20 },
-    headerCopy: { flex: 1, gap: 4 },
-    title: { color: colors.textPrimary, fontSize: 26, fontWeight: "700" },
-    subtitle: { color: colors.textSecondary, fontSize: 14 },
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+
+    content: {
+      gap: 24,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      paddingBottom: 40,
+    },
+
+    /* =========================
+       HEADER
+    ========================= */
+
+    header: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      flexDirection: "row",
+      gap: 12,
+      paddingBottom: 14,
+      paddingHorizontal: 20,
+    },
+
+    headerCopy: {
+      flex: 1,
+      gap: 4,
+    },
+
+    title: {
+      color: colors.textPrimary,
+      fontSize: 28,
+      fontWeight: "800",
+      letterSpacing: -0.5,
+    },
+
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+
     addButton: {
       alignItems: "center",
-      backgroundColor: colors.primary,
+      borderColor: colors.border,
       borderRadius: 10,
-      height: 44,
+      borderWidth: 1,
+      height: 42,
       justifyContent: "center",
-      width: 44,
+      width: 42,
     },
+
     addLabel: {
-      color: colors.onPrimary,
-      fontSize: 28,
+      color: colors.primary,
+      fontSize: 26,
       fontWeight: "400",
-      lineHeight: 30,
+      lineHeight: 29,
     },
-    list: {},
-    totalBalance: { alignItems: "center", backgroundColor: colors.surface, flexDirection: "row", justifyContent: "space-between", minHeight: 104, paddingHorizontal: 18 },
-    totalCopy: { gap: 6 },
-    totalLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "800", letterSpacing: 1 },
-    totalValue: { color: colors.textPrimary, fontSize: 28, fontWeight: "800" },
-    accountRow: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", minHeight: 116, paddingVertical: 18 },
-    pressed: { opacity: 0.65 },
-    identityRail: { alignSelf: "flex-start", height: 38, marginTop: 2, width: 5 },
-    accountMain: { flex: 1, gap: 15, paddingLeft: 12 },
-    accountTopline: { alignItems: "flex-start", flexDirection: "row", gap: 12 },
-    accountCopy: { flex: 1, gap: 5 },
-    accountName: { color: colors.textPrimary, fontSize: 18, fontWeight: "800", letterSpacing: -0.2 },
-    accountType: { color: colors.textSecondary, fontSize: 13 },
-    accountFooter: { alignItems: "center", borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 10 },
-    status: { color: colors.textSecondary, fontSize: 12 },
-    deactivate: { color: colors.danger, fontSize: 13, fontWeight: "600" },
-    balanceLine: { alignItems: "center", flexDirection: "row", gap: 2 },
-    balance: { color: colors.textPrimary, fontSize: 20, fontWeight: "800", textAlign: "right" },
+
+    /* =========================
+       TOTAL BALANCE
+    ========================= */
+
+    totalBalance: {
+      alignItems: "flex-end",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingBottom: 22,
+      paddingTop: 4,
+    },
+
+    totalCopy: {
+      gap: 5,
+    },
+
+    totalLabel: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      fontWeight: "700",
+      letterSpacing: 1.1,
+    },
+
+    totalValue: {
+      color: colors.textPrimary,
+      fontSize: 32,
+      fontWeight: "800",
+      letterSpacing: -0.8,
+      marginTop: 1,
+    },
+
+    /* =========================
+       ACCOUNT LIST
+    ========================= */
+
+    list: {
+      marginTop: -2,
+    },
+
+    accountRow: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: 14,
+      minHeight: 88,
+      paddingVertical: 18,
+    },
+
+    accountIcon: {
+      alignItems: "center",
+      backgroundColor: colors.primarySurface,
+      borderRadius: 12,
+      height: 46,
+      justifyContent: "center",
+      width: 46,
+    },
+
+    accountIconText: {
+      color: colors.primary,
+      fontSize: 17,
+      fontWeight: "800",
+    },
+
+    accountMain: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    accountTopline: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+    },
+
+    accountCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+
+    accountName: {
+      color: colors.textPrimary,
+      fontSize: 16,
+      fontWeight: "700",
+      letterSpacing: -0.1,
+    },
+
+    accountType: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      lineHeight: 18,
+    },
+
+    balance: {
+      color: colors.textPrimary,
+      flexShrink: 0,
+      fontSize: 16,
+      fontWeight: "800",
+      maxWidth: 150,
+      textAlign: "right",
+    },
+
+    /* =========================
+       GENERAL
+    ========================= */
+
+    pressed: {
+      opacity: 0.6,
+    },
+
+    disabled: {
+      opacity: 0.45,
+    },
+
+    /* =========================
+       MODAL
+    ========================= */
+
     modalBackdrop: {
       backgroundColor: colors.scrim,
       flex: 1,
       justifyContent: "flex-end",
     },
+
     modalCard: {
       backgroundColor: colors.background,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      gap: 18,
+      gap: 20,
       padding: 24,
       paddingBottom: 40,
     },
+
     modalHeader: {
-      alignItems: "center",
+      alignItems: "flex-start",
       flexDirection: "row",
+      gap: 16,
       justifyContent: "space-between",
     },
-    modalTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: "700" },
-    close: { color: colors.primary, fontSize: 15, fontWeight: "700" },
-    field: { gap: 8 },
-    fieldLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
-    typeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    typeChip: {
+
+    modalTitleGroup: {
+      flex: 1,
+      gap: 5,
+    },
+
+    modalTitle: {
+      color: colors.textPrimary,
+      fontSize: 22,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+
+    modalSubtitle: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+
+    closeButton: {
+      alignItems: "center",
+      height: 36,
+      justifyContent: "center",
+      width: 36,
+    },
+
+    close: {
+      color: colors.textSecondary,
+      fontSize: 19,
+      fontWeight: "600",
+    },
+
+    /* =========================
+       FORM
+    ========================= */
+
+    field: {
+      gap: 8,
+    },
+
+    fieldLabel: {
+      color: colors.textPrimary,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    /* =========================
+       ACCOUNT TYPE
+    ========================= */
+
+    typeRow: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderRadius: 6,
+      borderRadius: 10,
       borderWidth: 1,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
+      flexDirection: "row",
+      padding: 3,
     },
-    selectedChip: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+
+    typeOption: {
+      alignItems: "center",
+      borderRadius: 7,
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: 6,
     },
-    typeChipText: {
+
+    selectedTypeOption: {
+      backgroundColor: colors.primarySurface,
+    },
+
+    typeOptionText: {
       color: colors.textSecondary,
       fontSize: 14,
       fontWeight: "700",
     },
-    selectedChipText: { color: colors.onPrimary },
+
+    selectedTypeOptionText: {
+      color: colors.primary,
+    },
   });
 }

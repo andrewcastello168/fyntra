@@ -894,31 +894,48 @@ function createStyles(colors: ThemeColors) {
     title: { color: colors.textPrimary, fontSize: 26, fontWeight: "700" },
     subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
     typeSelector: {
-      borderBottomColor: colors.border,
-      borderBottomWidth: 1,
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 10,
       flexDirection: "row",
-      gap: 0,
+      padding: 3,
     },
+
     typeOption: {
-      backgroundColor: colors.background,
-      borderBottomColor: colors.border,
-      borderBottomWidth: 3,
+      alignItems: "center",
+      borderRadius: 7,
       flex: 1,
-      paddingHorizontal: 8,
-      paddingVertical: 14,
+      justifyContent: "center",
+      minHeight: 52,
+      paddingHorizontal: 6,
+      paddingVertical: 8,
     },
+
     selectedType: {
       backgroundColor: colors.primarySurface,
-      borderBottomColor: colors.primary,
     },
-    typeLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: "800" },
+
+    typeLabel: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+
+    selectedText: {
+      color: colors.primary,
+    },
+
     typeDescription: {
       color: colors.textSecondary,
-      fontSize: 12,
-      marginTop: 3,
+      fontSize: 10,
+      marginTop: 2,
+      textAlign: "center",
     },
-    selectedText: { color: colors.textPrimary },
-    selectedDescription: { color: colors.textSecondary },
+
+    selectedDescription: {
+      color: colors.textSecondary,
+    },
     sectionLabel: {
       color: colors.textSecondary,
       fontSize: 12,

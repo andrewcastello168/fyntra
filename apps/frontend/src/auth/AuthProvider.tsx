@@ -19,10 +19,10 @@ import {
 import {
   disableBiometricLogin,
   enableBiometricLogin,
-  getBiometricSession,
+  getBiometricCredential,
   hasBiometricLogin,
   isBiometricAuthenticationSupported,
-  updateBiometricSession,
+  clearLocalBiometricLogin,
 } from "@/src/auth/biometric";
 
 export type User = {
@@ -106,16 +106,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const belongsToAnotherUser =
           !belongsToCurrentUser && (await hasBiometricLogin());
 
-        if (belongsToAnotherUser) await disableBiometricLogin();
+        if (belongsToAnotherUser) {
+          await disableBiometricLogin(result.accessToken);
+        }
 
         if (supportsBiometrics && !belongsToCurrentUser) {
           const shouldEnable = await confirmBiometricEnrollment();
 
           if (shouldEnable) {
-            const enabled = await enableBiometricLogin({
-              refreshToken: result.refreshToken,
-              userId: result.user.id,
-            });
+            const enabled = await enableBiometricLogin(
+              result.user.id,
+              result.accessToken,
+            );
 
             if (!enabled) {
               Alert.alert(
@@ -140,32 +142,29 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const loginWithBiometrics = async () => {
     setError(null);
-    const biometricSession = await getBiometricSession();
-
-    if (!biometricSession) {
+    const biometricCredential = await getBiometricCredential();
+    if (!biometricCredential) {
       throw new Error(
-        "Biometric login is no longer available. Sign in with your password.",
+        "Biometric login is not set up. Please sign in with your password first.",
       );
     }
 
     try {
-      const result = await refreshSession(biometricSession.refreshToken);
-
-      try {
-        await updateBiometricSession({
-          refreshToken: result.refreshToken,
-          userId: result.user.id,
-        });
-      } catch {
-        await disableBiometricLogin().catch(() => undefined);
-      }
-
+      const result = await apiFetch<AuthResponse>("/auth/biometric/login", {
+        method: "POST",
+        body: JSON.stringify({
+          credential: biometricCredential.credential,
+          deviceId: biometricCredential.deviceId,
+        }),
+      });
+      await saveSession(result.accessToken, result.refreshToken);
       setUser(result.user);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        await disableBiometricLogin().catch(() => undefined);
+        await clearLocalBiometricLogin().catch(() => undefined);
         await clearActiveSession().catch(() => undefined);
       }
+
       throw error;
     }
   };
@@ -221,10 +220,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } catch {
       // A missing or expired remote session is already logged out remotely.
     } finally {
-      await Promise.all([
-        clearActiveSession().catch(() => undefined),
-        disableBiometricLogin().catch(() => undefined),
-      ]);
+      await clearActiveSession().catch(() => undefined);
       setUser(null);
       setError(null);
     }
@@ -232,7 +228,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     return setSessionInvalidHandler(async () => {
-      await disableBiometricLogin().catch(() => undefined);
+      await clearActiveSession().catch(() => undefined);
       setUser(null);
       setError(null);
     });
@@ -269,19 +265,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-async function refreshSession(refreshToken: string) {
-  const result = await apiFetch<AuthResponse>("/auth/refresh", {
-    method: "POST",
-    body: JSON.stringify({
-      refreshToken,
-      type: process.env.EXPO_PUBLIC_APP_ENV ?? "sim",
-    }),
-  });
-
-  await saveSession(result.accessToken, result.refreshToken);
-  return result;
 }
 
 function confirmBiometricEnrollment() {

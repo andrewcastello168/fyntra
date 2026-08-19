@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.andrew.fyntra",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#F7F7F3",
         "foregroundImage": "./assets/images/adaptive-icon.png"

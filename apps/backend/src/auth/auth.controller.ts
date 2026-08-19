@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Post,
+  Req,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +15,10 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshSessionDto } from './dto/refresh-session.dto';
 import { SupabaseMode } from '../supabase/supabase.config';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { BiometricEnrollDto } from './dto/biometric-enroll.dto';
+import { BiometricLoginDto } from './dto/biometric-login.dto';
+import { RevokeBiometricDto } from './dto/revoke-biometric.dto';
+import type { AuthenticatedRequest } from './types/authenticated-request.type';
 
 @Controller('auth')
 export class AuthController {
@@ -37,6 +43,36 @@ export class AuthController {
   }
 
   @UseGuards(SupabaseAuthGuard)
+  @Post('biometric/enroll')
+  enrollBiometric(
+    @Req() request: AuthenticatedRequest,
+    @Body() biometricEnrollDto: BiometricEnrollDto,
+  ) {
+    return this.authService.enrollBiometric(
+      request.user.id,
+      biometricEnrollDto,
+    );
+  }
+
+  @Post('biometric/login')
+  biometricLogin(@Body() biometricLoginDto: BiometricLoginDto) {
+    const envService = process.env.APP_ENV as SupabaseMode;
+    return this.authService.loginWithBiometric(biometricLoginDto, envService);
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Delete('biometric')
+  revokeBiometric(
+    @Req() request: AuthenticatedRequest,
+    @Body() revokeBiometricDto: RevokeBiometricDto,
+  ) {
+    return this.authService.revokeBiometric(
+      request.user.id,
+      revokeBiometricDto.deviceId,
+    );
+  }
+
+  @UseGuards(SupabaseAuthGuard)
   @Post('logout')
   logout(@Headers('authorization') authorization?: string) {
     if (!authorization?.startsWith('Bearer ')) {
@@ -44,9 +80,9 @@ export class AuthController {
     }
 
     const accessToken = authorization.substring(7);
-    const envService = process.env.APP_ENV as SupabaseMode;
+    // const envService = process.env.APP_ENV as SupabaseMode;
 
-    return this.authService.logout(accessToken, envService);
+    return this.authService.logout(accessToken);
   }
 
   @UseGuards(SupabaseAuthGuard)
