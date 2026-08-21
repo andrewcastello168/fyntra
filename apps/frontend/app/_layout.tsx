@@ -1,7 +1,7 @@
-import { Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AuthProvider } from "@/src/auth/AuthProvider";
+import { AuthProvider, useAuth } from "@/src/auth/AuthProvider";
 import { ThemeProvider, useTheme } from "@/src/theme";
 import { BalanceVisibilityProvider } from "@/src/privacy/BalanceVisibilityProvider";
 
@@ -21,6 +21,22 @@ export default function RootLayout() {
 
 function ThemedRoot() {
   const { colors, resolvedMode } = useTheme();
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+
+  if (isLoading) {
+    return null;
+  }
+
+  const inAuthGroup = segments[0] === "(auth)";
+
+  if (!user && !inAuthGroup) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (user && inAuthGroup) {
+    return <Redirect href="/(app)/(tabs)" />;
+  }
 
   return (
     <>
@@ -29,6 +45,7 @@ function ThemedRoot() {
         style={resolvedMode === "dark" ? "light" : "dark"}
         backgroundColor={colors.background}
       />
+
       <Stack
         screenOptions={{
           headerShown: false,

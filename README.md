@@ -1,292 +1,477 @@
+<div align="center">
+
+<!-- <img src="./docs/screenshots/09-home.png" alt="Fyntra Home" width="280"/> -->
+
 # Fyntra
 
-> **Your money, at a glance.**
+### Your money, at a glance.
 
-A personal finance app designed to make everyday money management clearer — from tracking transactions and accounts to understanding how much you can safely spend today.
+A modern personal finance mobile app for tracking **income, expenses, transfers, accounts, budgets, and financial activity** - with an AI assistant that turns natural-language descriptions into transaction drafts.
 
-<img src="docs/screenshots/home.png" alt="Fyntra Accounts" width="280" />
-<!-- ![Fyntra Home](docs/screenshots/home.png) -->
+<br/>
 
-## Why Fyntra?
+![Expo](https://img.shields.io/badge/Expo-54-000020?logo=expo&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=111)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-Backend-E0234E?logo=nestjs&logoColor=white)
 
-Most finance apps are good at showing you what already happened.
-
-Fyntra is built around the next question:
-
-> **How much can I spend today?**
-
-It brings your accounts, transactions, income, spending, and current budget period together so the important information is visible without digging through numbers.
+</div>
 
 ---
 
-## ✨ Features
+## ✨ Overview
 
-### 💰 Accounts
+**Fyntra** is a personal finance tracker built around a simple idea:
 
-Manage multiple places where your money lives and keep their balances connected.
+> **Managing money should feel clear, fast, and intentional.**
+
+Instead of making every transaction feel like a form, Fyntra lets users record finances through a structured workflow **or simply describe what happened in natural language** and let the AI assistant prepare a draft.
+
+For example:
+
+> **“Saya makan siang 50 ribu bayar pakai Superbank.”**
+
+The assistant prepares the transaction for review before anything is saved. The user remains in control from start to finish.
+
+---
+
+## 📱 App Preview
+
+<div align="center">
+  <img src="./docs/screenshots/09-home.png" alt="Home" width="220"/>
+  <img src="./docs/screenshots/08-transactions.png" alt="Transactions" width="220"/>
+  <img src="./docs/screenshots/06-create-expense.png" alt="Create Expense" width="220"/>
+  <img src="./docs/screenshots/05-create-transfer.png" alt="Create Transfer" width="220"/>
+</div>
+
+---
+
+## 🚀 Features
+
+### 💰 Financial Dashboard
+
+See the important numbers immediately:
+
+- Current balance across active accounts
+- Budget for the current period
+- Spending progress
+- Remaining budget
+- Days left in the period
+- Safe-per-day spending amount
+- Recent activity
+
+<div align="center">
+  <img src="./docs/screenshots/09-home.png" alt="Fyntra financial dashboard" width="300"/>
+</div>
+
+---
+
+### 🧾 Transaction Management
+
+Fyntra supports three core transaction types:
+
+| Type         | Purpose                             |
+| ------------ | ----------------------------------- |
+| **Income**   | Record money coming into an account |
+| **Expense**  | Record spending and categorize it   |
+| **Transfer** | Move money between accounts         |
+
+<div align="center">
+  <img src="./docs/screenshots/06-create-expense.png" alt="Expense transaction" width="300"/>
+  <img src="./docs/screenshots/05-create-transfer.png" alt="Transfer transaction" width="300"/>
+</div>
+
+Transfers use both a source and destination account so money movement is represented correctly.
+
+<div align="center">
+  <img src="./docs/screenshots/07-create-transfer-accounts.png" alt="Transfer source and destination accounts" width="300"/>
+</div>
+
+---
+
+### ✨ Fyntra AI Assist
+
+The AI assistant is designed around a **review-first** workflow:
+
+```text
+Describe
+   ↓
+Prepare draft
+   ↓
+Review
+   ↓
+Add transaction
+```
+
+Nothing is saved automatically from the AI flow.
+
+<div align="center">
+  <img src="./docs/screenshots/03-ai-assist-loading.png" alt="Fyntra AI loading state" width="300"/>
+  <img src="./docs/screenshots/04-ai-assist-filled.png" alt="Fyntra AI transaction description" width="300"/>
+</div>
+
+Example:
+
+> “Saya makan siang 50 ribu bayar pakai Superbank.”
+
+This makes transaction entry faster while keeping the final decision with the user.
+
+---
+
+### 📊 Transaction History
+
+Review financial activity in a dedicated history screen with filters for:
+
+**All · Income · Expense · Transfer**
+
+<div align="center">
+  <img src="./docs/screenshots/08-transactions.png" alt="Fyntra transaction history" width="300"/>
+</div>
+
+Transactions expose useful context such as amount, date, account, description, and transaction type.
+
+---
+
+### 🏦 Multiple Accounts
+
+Track money across different accounts such as:
 
 - Bank accounts
-- Cash accounts
-- Individual account balances
-- Combined total balance
-- Activate or deactivate accounts as needed
+- Cash
+- Other active financial accounts
 
-<img src="docs/screenshots/accounts.png" alt="Fyntra Transactions" width="280" />
-<!-- ![Fyntra Accounts](docs/screenshots/accounts.png) -->
+Transfers can move money between these accounts without treating the movement as income or expense.
 
-### 💸 Transactions
+---
 
-Record everyday money movement in one place.
+### 🔐 Privacy & Security
 
-- Income
-- Expenses
-- Transfers between accounts
-- Transaction history
-- Filtering by transaction type
-- Edit and delete supported transactions
-
-<img src="docs/screenshots/transactions.png" alt="Fyntra Transactions" width="280" />
-<!-- ![Fyntra Transactions](docs/screenshots/transactions.png) -->
-
-### 📊 Budget & Safe Daily Spend
-
-Fyntra organizes spending around an income-based financial period.
-
-The dashboard brings together:
-
-- Current balance
-- Active budget period
-- Amount spent
-- Remaining budget
-- Days remaining
-- Safe daily spending amount
-
-The goal is simple: turn financial data into a number you can actually use.
-
-> **Know what you can spend today without losing track of where your money went.**
-
-<img src="docs/screenshots/home.png" alt="Fyntra Budget" width="280" />
-<!-- ![Fyntra Budget](docs/screenshots/home.png) -->
-
-### 🤖 Fyntra AI Assist
-
-Fyntra includes an AI assistant directly inside the transaction flow.
-
-Instead of manually filling every field, users can describe a transaction naturally.
-
-```text
-makan 50k pakai BCA
-```
-
-Fyntra AI Assist can interpret the description and prepare a transaction draft with details such as the transaction type, amount, account, date, category, and note.
-
-The AI is intentionally **review-first**:
-
-```text
-Natural language
-       ↓
-   AI Assist
-       ↓
-Transaction draft
-       ↓
-    Review
-       ↓
-     Save
-```
-
-**The AI does not save a transaction automatically.** The user reviews and explicitly submits the final transaction.
-
-<img src="docs/screenshots/create-transaction.png" alt="Fyntra AI Assist" width="280" />
-<!-- ![Fyntra AI Assist](docs/screenshots/create-transaction.png) -->
-
-### 🔐 Privacy & Personalization
-
-Because Fyntra deals with personal financial information, privacy is part of the product experience.
+Fyntra includes privacy-focused controls for financial information:
 
 - Biometric login
 - Hide balances by default
-- Unlock balances when needed
-- Secure session handling
-- System, light, and dark appearance modes
-- Currency preferences
+- Tap-to-reveal balances
+- Secure authentication flow
 
-<img src="docs/screenshots/profile.png" alt="Fyntra Settings" width="280" />
-<!-- ![Fyntra Settings](docs/screenshots/profile.png) -->
-
----
-
-## 🧠 AI Architecture
-
-Fyntra keeps AI integration behind the backend instead of connecting the mobile app directly to an AI provider.
-
-```text
-┌─────────────────────────┐
-│      Fyntra Mobile      │
-│   React Native + Expo   │
-└────────────┬────────────┘
-             │
-             │ REST API
-             ▼
-┌─────────────────────────┐
-│      NestJS Backend     │
-│                         │
-│  Auth                   │
-│  Business Logic         │
-│  Transactions           │
-│  Budgeting              │
-│  AI Integration         │
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│       AI Gateway        │
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│       OpenRouter        │
-└────────────┬────────────┘
-             │
-             ▼
-             LLM
-```
-
-This architecture keeps the client independent from a specific model or provider and lets the backend control the AI experience.
+<div align="center">
+  <img src="./docs/screenshots/10-sign-in.png" alt="Fyntra sign in" width="300"/>
+  <img src="./docs/screenshots/01-settings.png" alt="Fyntra settings and security" width="300"/>
+</div>
 
 ---
 
-## 🏗️ Architecture
+### 🎨 Personalization
 
-```text
-                 ┌──────────────────┐
-                 │   Fyntra Mobile  │
-                 │ React Native +   │
-                 │      Expo        │
-                 └────────┬─────────┘
-                          │
-                          ▼
-                 ┌──────────────────┐
-                 │   NestJS API     │
-                 └───────┬──────────┘
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-      ┌────────────────┐    ┌────────────────┐
-      │ Supabase Auth  │    │  AI Gateway    │
-      │ + PostgreSQL   │    └───────┬────────┘
-      └────────────────┘            │
-                                    ▼
-                               OpenRouter
-```
+Settings provide a central place for:
 
-The mobile client handles the experience, while the backend is responsible for authentication, financial business logic, data access, and AI integration.
+- Profile information
+- Appearance preferences
+- Currency
+- Biometric login
+- Balance visibility
+- Account controls
+
+<div align="center">
+  <img src="./docs/screenshots/01-settings.png" alt="Fyntra settings" width="300"/>
+</div>
+
+---
+
+## 🔑 Authentication
+
+Fyntra keeps authentication intentionally simple.
+
+### Sign In
+
+<div align="center">
+  <img src="./docs/screenshots/10-sign-in.png" alt="Fyntra sign in screen" width="300"/>
+</div>
+
+### Register
+
+<div align="center">
+  <img src="./docs/screenshots/02-register.png" alt="Fyntra registration screen" width="300"/>
+</div>
+
+Users can also sign in using biometric authentication when enabled.
+
+---
+
+## 🧠 Product Philosophy
+
+Fyntra is designed around five principles:
+
+| Principle       | Idea                                                                   |
+| --------------- | ---------------------------------------------------------------------- |
+| **Clarity**     | Financial information should be easy to understand at a glance.        |
+| **Speed**       | Recording a transaction should take seconds, not minutes.              |
+| **Control**     | AI can assist, but the user decides what gets saved.                   |
+| **Privacy**     | Sensitive financial information should be easy to hide and protect.    |
+| **Consistency** | The interface should feel predictable across every financial workflow. |
+
+---
+
+## 🎨 Visual Direction
+
+The interface uses a focused dark theme with:
+
+- High-contrast typography
+- Blue interactive states
+- Green positive financial states
+- Red / warm negative financial states
+- Rounded cards and input surfaces
+- Strong spacing and visual hierarchy
+
+The goal is to make the app feel **calm, premium, and financial-data focused** rather than visually noisy.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer          | Technology                                  |
-| -------------- | ------------------------------------------- |
-| Mobile         | React Native, Expo, Expo Router, TypeScript |
-| Backend        | NestJS, Node.js, TypeScript                 |
-| Database       | PostgreSQL, Supabase                        |
-| Authentication | Supabase Auth                               |
-| Data Access    | Knex                                        |
-| AI             | AI Gateway, OpenRouter, LLMs                |
-| Testing        | Jest                                        |
-| Code Quality   | ESLint, Prettier                            |
+### Mobile
+
+- **React Native**
+- **Expo**
+- **Expo Router**
+- **TypeScript**
+- **React Navigation**
+- **React Native Reanimated**
+- **Expo Secure Store**
+- **Expo Local Authentication**
+- **React Native Gesture Handler**
+- **React Native Safe Area Context**
+
+### Backend
+
+- **NestJS**
+- REST API architecture
+- Authentication
+- Financial data services
+
+### Development
+
+- **Node.js**
+- **npm**
+- **Git / GitHub**
+- **Metro**
+- Expo development workflow
 
 ---
 
-## 📱 Product Screens
+## 📂 Project Structure
 
-### Home
+The application is organized as a workspace containing the mobile client and backend:
 
-<table>
-  <tr>
-    <td><img src="docs/screenshots/home.png" alt="Home" width="220" /></td>
-    <td><img src="docs/screenshots/transactions.png" alt="Transactions" width="220" /></td>
-    <td><img src="docs/screenshots/create-transaction.png" alt="Create Transaction" width="220" /></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Home</strong></td>
-    <td align="center"><strong>Transactions</strong></td>
-    <td align="center"><strong>Create Transaction</strong></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/accounts.png" alt="Accounts" width="220" /></td>
-    <td><img src="docs/screenshots/profile.png" alt="Profile & Security" width="220" /></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Accounts</strong></td>
-    <td align="center"><strong>Profile & Security</strong></td>
-    <td></td>
-  </tr>
-</table>
+```text
+personal-tracker-daily-app/
+│
+├── apps/
+│   ├── frontend/              # React Native + Expo application
+│   │   ├── app/               # Expo Router routes
+│   │   ├── src/               # Components, auth, services, utilities
+│   │   ├── assets/
+│   │   └── ...
+│   │
+│   └── backend/               # NestJS API
+│       ├── src/
+│       └── ...
+│
+├── README.md
+└── ...
+```
+
 ---
 
-## 🚀 Getting Started
+## ⚡ Getting Started
 
-### Requirements
+### Prerequisites
+
+Make sure you have:
 
 - Node.js
 - npm
-- PostgreSQL
-- Expo Go or an Android/iOS emulator
+- Expo development environment
+- Android/iOS device or emulator
+- Backend API available
+- Environment variables configured
 
-### Install
-
-```bash
-git clone https://github.com/andrewcastello168/personal-daily-tracker-app.git
-cd personal-daily-tracker-app
-```
-
-Install frontend dependencies:
+### 1. Install dependencies
 
 ```bash
 cd apps/frontend
 npm install
 ```
 
-Install backend dependencies:
+### 2. Configure environment variables
 
-```bash
-cd ../backend
-npm install
+Create your frontend environment file:
+
+```env
+EXPO_PUBLIC_API_URL=http://your-api-url
+EXPO_PUBLIC_APP_ENV=development
 ```
 
-Start the backend:
+### 3. Start with Expo Go
 
 ```bash
-npm run start:dev
+npx expo start
 ```
 
-Start the mobile app in another terminal:
+Scan the QR code and open the project in **Expo Go**.
+
+### 4. Start with a development build
 
 ```bash
-cd ../frontend
-npm start
+npx expo start --dev-client
+```
+
+For a native development build:
+
+```bash
+npx expo run:android
 ```
 
 ---
 
-## About the Project
+## 🔄 Development Workflow
 
-Fyntra is a full-stack mobile application built as a practical exploration of **product design, mobile development, backend engineering, financial business logic, and AI integration**.
+During normal React / TypeScript development, Metro + Fast Refresh lets changes appear without rebuilding the entire application:
 
-The project focuses on making personal finance feel less like a spreadsheet and more like a useful everyday tool.
+```text
+Edit source code
+      ↓
+Save
+      ↓
+Metro detects change
+      ↓
+Fast Refresh
+      ↓
+Updated screen
+```
+
+Native configuration changes may require rebuilding the development client.
 
 ---
 
-## Author
+## 🗺️ Core User Flow
 
-**Andrew Castello**
-
-[GitHub](https://github.com/andrewcastello168)
+```text
+                    ┌──────────────┐
+                    │    Sign In   │
+                    └──────┬───────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │     Home     │
+                    └──────┬───────┘
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+     Transactions      Accounts         Settings
+          │
+          ▼
+   Create Transaction
+          │
+      ┌───┼────┐
+      │   │    │
+      ▼   ▼    ▼
+   Income Expense Transfer
+          │
+          ▼
+      AI Assist
+          │
+          ▼
+     Review Draft
+          │
+          ▼
+        Save
+```
 
 ---
 
-> **Fyntra**  
-> Track your money. Understand your spending. Spend with confidence.
+## 🤖 AI Transaction Flow
+
+The AI assistant intentionally separates **interpretation** from **confirmation**:
+
+```text
+Natural-language input
+        ↓
+     AI parsing
+        ↓
+   Transaction draft
+        ↓
+     User review
+        ↓
+   User confirmation
+        ↓
+   Financial record
+```
+
+This prevents an AI-generated interpretation from becoming a financial record without user approval.
+
+---
+
+## 🧪 Example
+
+A user can write:
+
+```text
+Saya makan siang 50 ribu bayar pakai Superbank.
+```
+
+Instead of manually filling out every field, Fyntra can use the sentence as context for a transaction draft.
+
+The final result is still reviewed before it is added.
+
+---
+
+## 🛣️ Roadmap
+
+- [ ] Richer spending analytics
+- [ ] Charts and financial insights
+- [ ] Recurring transactions
+- [ ] Smarter transaction categorization
+- [ ] Expanded AI transaction parsing
+- [ ] Export and reporting
+- [ ] Deeper account analytics
+- [ ] Additional localization
+- [ ] More currency support
+- [ ] Improved budgeting tools
+
+---
+
+## 📸 Screenshot Gallery
+
+<div align="center">
+
+<img src="./docs/screenshots/09-home.png" alt="Home" width="180"/>
+<img src="./docs/screenshots/08-transactions.png" alt="Transactions" width="180"/>
+<img src="./docs/screenshots/06-create-expense.png" alt="Expense" width="180"/>
+<img src="./docs/screenshots/05-create-transfer.png" alt="Transfer" width="180"/>
+<img src="./docs/screenshots/04-ai-assist-filled.png" alt="AI Assistant" width="180"/>
+<img src="./docs/screenshots/01-settings.png" alt="Settings" width="180"/>
+<img src="./docs/screenshots/10-sign-in.png" alt="Sign In" width="180"/>
+<img src="./docs/screenshots/02-register.png" alt="Register" width="180"/>
+
+</div>
+
+---
+
+## 📌 Project Status
+
+Fyntra is an actively developed personal finance application combining:
+
+**structured financial tracking + modern mobile UX + AI-assisted transaction entry**
+
+The current application covers the essential experience from authentication to financial overview, transaction creation, account-aware transfers, AI-assisted input, transaction history, and privacy settings.
+
+---
+
+<div align="center">
+
+### Built with React Native, Expo, NestJS, and ☕
+
+**Fyntra - Your money, at a glance.**
+
+</div>
