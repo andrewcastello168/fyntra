@@ -1,10 +1,12 @@
 <div align="center">
 
-<!-- <img src="./docs/screenshots/09-home.png" alt="Fyntra Home" width="280"/> -->
+<img src="./docs/screenshots/fyntra-symbol.png" alt="Fyntra Logo" width="70"/>
 
-# Fyntra
+<h1>Fyntra</h1>
 
-### Your money, at a glance.
+<p><strong>Your money, at a glance.</strong></p>
+
+</div>
 
 A modern personal finance mobile app for tracking **income, expenses, transfers, accounts, budgets, and financial activity** - with an AI assistant that turns natural-language descriptions into transaction drafts.
 
