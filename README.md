@@ -6,16 +6,24 @@
 
 <p><strong>Your money, at a glance.</strong></p>
 
-</div>
+<p>
+A modern personal finance mobile app for tracking
+<strong>income, expenses, transfers, accounts, budgets, and financial activity</strong>
+— with an AI assistant that turns natural-language descriptions into transaction drafts.
+</p>
 
-A modern personal finance mobile app for tracking **income, expenses, transfers, accounts, budgets, and financial activity** - with an AI assistant that turns natural-language descriptions into transaction drafts.
+<p>
+  <img src="https://img.shields.io/badge/Expo-54-000020?logo=expo&logoColor=white" alt="Expo"/>
+  <img src="https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=111" alt="React Native"/>
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/NestJS-Backend-E0234E?logo=nestjs&logoColor=white" alt="NestJS"/>
+</p>
 
-<br/>
-
-![Expo](https://img.shields.io/badge/Expo-54-000020?logo=expo&logoColor=white)
-![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=111)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-Backend-E0234E?logo=nestjs&logoColor=white)
+<p>
+  <a href="https://github.com/andrewcastello168/fyntra/releases/tag/v1.0.0">
+    <strong>⬇️ Download Fyntra for Android</strong>
+  </a>
+</p>
 
 </div>
 
